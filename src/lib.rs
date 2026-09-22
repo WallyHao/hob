@@ -9,6 +9,8 @@ mod driver;
 mod effect;
 mod exec;
 mod lua;
+mod paths;
+mod store;
 
 pub mod provider;
 

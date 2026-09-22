@@ -1,0 +1,58 @@
+# Commands
+
+A command is a Lua flow the CLI can run by name. `hob run path/to/file.lua`
+stays available for files and CI; a bare word is looked up in the registry.
+
+## The registry
+
+| Layer | Location | Precedence |
+| --- | --- | --- |
+| project | `<project>/.hob/commands/*.lua` | highest |
+| user | `$HOB_CONFIG_DIR`, else `$XDG_CONFIG_HOME/hob`, else `~/.config/hob`, plus `/commands/*.lua` | lower |
+| builtin | compiled into the binary | reserved, empty today |
+
+The project root is the nearest ancestor of the working directory holding
+`.hob` or `.git`, so a command works from any subdirectory of a checkout. A
+name defined in two layers is not merged: the project file wins and the user
+file is shadowed, which `hob list` and `hob which` show.
+
+`HOB_CONFIG_DIR` exists so tests and throwaway profiles can run against a
+temporary configuration.
+
+## Loading
+
+Discovery never executes a command. A file contributes a name, a path and its
+first non-empty line when that line starts with `--- ` (the summary `hob list`
+shows). The source is read only when the command runs, and it runs through the
+same driver as `hob run`: the flow sees `hob.command` (the name) and `hob.args`
+(everything after the name, flags included).
+
+Names are `[a-z][a-z0-9-]*`, at most 32 characters. Files that do not match, or
+that take a reserved verb as their name (`run`, `list`, `new`, `rm`, `which`),
+are not commands; `hob list` reports them under `ignored` rather than hiding
+them. Subdirectories are not searched.
+
+## Verbs
+
+| Verb | Behavior | Exit |
+| --- | --- | --- |
+| `hob <name> [args...]` | run the effective command | flow's code |
+| `hob run <file.lua> [args...]` | run a file, no discovery | flow's code |
+| `hob list` | effective commands, origin, summary; then ignored files | 0 |
+| `hob which <name>` | every layer that defines the name, effective first | 0, 1 unknown |
+| `hob new <name> [--user\|--local]` | write a template; project when inside one, the user directory otherwise | 0, 1 exists, 2 bad flags |
+| `hob rm <name>` | delete the effective file | 0, 1 unknown |
+
+`rm` only ever deletes a file the registry resolved: it takes a name, never a
+path, and cannot touch a builtin. Removing a project command that shadows a
+user command prints the path that becomes effective again.
+
+Unknown names exit 2 with a nearest-name suggestion (edit distance at most 2),
+or a `hob run` hint when the word looks like a path.
+
+## Not in this layer
+
+Deferred until a real flow needs them: shared Lua modules for commands
+(`require` still serves only the embedded modules), per-command `--help` and
+argument validation, subdirectories as namespaces, a builtin command, and a
+compiled-command cache. The registry is the filesystem; there is no manifest.

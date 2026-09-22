@@ -8,12 +8,12 @@ each gate; this page is the index.
 
 | Gate | Where | Budget | Measured | Kind |
 | --- | --- | --- | --- | --- |
-| Release binary size | `scripts/check_binary_size.sh` | 1 MiB | 871 KiB | absolute |
+| Release binary size | `scripts/check_binary_size.sh` | 1 MiB | 924 KiB | absolute |
 | Peak heap, `hob --version` | `scripts/check_heap.sh` | 16 KiB | 1736 B | absolute |
 | Peak heap, `hob run` (one-line flow) | `scripts/check_heap.sh` | 128 KiB | 40 KiB | absolute |
 | Startup allocations | `tests/allocations.rs` | 4 KiB, 32 allocations | 502 B, 3 allocations | absolute |
 | Normal dependencies | `scripts/check_deps.sh` | 150 crates, denylist | 100 crates | absolute |
-| Startup instructions | `benches/startup.rs` | against a saved baseline | 1526 / 1761 / 3125 | relative |
+| Startup instructions | `benches/startup.rs` | against a saved baseline | 1528 / 1847 / 3746 | relative |
 
 All measurements are from the pinned toolchain in `rust-toolchain.toml`.
 Massif and the counting allocator are deterministic; do not replace them with
