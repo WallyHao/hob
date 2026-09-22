@@ -80,6 +80,11 @@ impl Chat {
         Value::Array(self.messages.iter().map(messages::turn).collect())
     }
 
+    /// The provider id and model, for a preview of a refused turn.
+    pub(crate) fn label(&self) -> (&str, &str) {
+        (&self.spec.id, &self.model)
+    }
+
     /// Token accounting so far.
     pub(crate) fn usage(&self) -> Usage {
         self.usage

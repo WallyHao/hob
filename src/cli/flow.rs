@@ -6,14 +6,14 @@ use std::fs;
 use std::io::Write;
 use std::path::Path;
 
-use crate::driver;
+use crate::driver::{self, Control};
 use crate::effect::Failure;
 use crate::store::Command;
 
 use super::USAGE_EXIT;
 
 /// Run `hob run <file.lua> [args...]`.
-pub(crate) fn file(rest: &[String], err: &mut dyn Write) -> u8 {
+pub(crate) fn file(rest: &[String], control: Control, err: &mut dyn Write) -> u8 {
     let Some(path) = rest.first() else {
         return fail(
             err,
@@ -28,11 +28,16 @@ pub(crate) fn file(rest: &[String], err: &mut dyn Write) -> u8 {
         .file_stem()
         .and_then(|stem| stem.to_str())
         .unwrap_or("flow");
-    execute(&source, name, &rest[1..], err)
+    execute(&source, name, &rest[1..], control, err)
 }
 
 /// Run a command the registry resolved.
-pub(crate) fn command(command: &Command, args: &[String], err: &mut dyn Write) -> u8 {
+pub(crate) fn command(
+    command: &Command,
+    args: &[String],
+    control: Control,
+    err: &mut dyn Write,
+) -> u8 {
     let source = match fs::read_to_string(&command.path) {
         Ok(source) => source,
         Err(error) => {
@@ -43,12 +48,12 @@ pub(crate) fn command(command: &Command, args: &[String], err: &mut dyn Write) -
             );
         }
     };
-    execute(&source, &command.name, args, err)
+    execute(&source, &command.name, args, control, err)
 }
 
 /// Drive one flow and map its outcome to an exit code.
-fn execute(source: &str, name: &str, args: &[String], err: &mut dyn Write) -> u8 {
-    match driver::run(name, source, args) {
+fn execute(source: &str, name: &str, args: &[String], control: Control, err: &mut dyn Write) -> u8 {
+    match driver::run(name, source, args, control) {
         Ok(()) => 0,
         Err(failure) if failure.message.is_empty() => failure.code,
         Err(failure) => report(err, &failure.message, failure.code),

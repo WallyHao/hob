@@ -47,6 +47,10 @@ them. Subdirectories are not searched.
 path, and cannot touch a builtin. Removing a project command that shadows a
 user command prints the path that becomes effective again.
 
+Control flags (`--dry-run`, `--step`, `-v`, `-q`, `--yes`) may follow the
+command name; `--` ends them and hands everything after it to the flow. They are
+described in `docs/control.md`.
+
 Unknown names exit 2 with a nearest-name suggestion (edit distance at most 2),
 or a `hob run` hint when the word looks like a path.
 

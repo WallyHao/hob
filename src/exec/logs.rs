@@ -1,16 +1,21 @@
 // --- exec::logs ---
-// Log lines go to stderr so stdout stays data a caller can pipe.
+// Log lines go to stderr so stdout stays data a caller can pipe. A level is
+// shown when it is at or below the run's verbosity: warnings and errors always,
+// `info` by default, `debug` under `-vv`, `trace` under `-vvv`.
 
 use serde_json::Value;
 
 use crate::effect::Failure;
 use crate::effect::ops::logs::Write;
+use crate::exec::State;
 
 /// Write one log line.
 // Every operation returns a `Result` so the dispatch table stays uniform;
 // logging cannot fail, but the next effect in this namespace may.
 #[allow(clippy::unnecessary_wraps)]
-pub(crate) fn write(entry: &Write) -> Result<Value, Failure> {
-    eprintln!("{}: {}", entry.level.label(), entry.msg);
+pub(crate) fn write(state: &State, entry: &Write) -> Result<Value, Failure> {
+    if entry.level.rank() <= state.verbosity {
+        eprintln!("{}: {}", entry.level.label(), entry.msg);
+    }
     Ok(Value::Null)
 }

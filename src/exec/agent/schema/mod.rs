@@ -4,10 +4,12 @@
 // parsing of an answer that may arrive fenced.
 
 mod check;
+mod example;
 
 use serde_json::Value;
 
 pub(crate) use check::validate;
+pub(crate) use example::example;
 
 /// The instruction that asks for JSON of the given shape.
 pub(crate) fn instruction(schema: &Value) -> String {

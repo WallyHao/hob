@@ -18,18 +18,13 @@ local ABORT_KEY = "__hob_abort"
 -- to get `nil, err` back instead, for the rare case where a flow wants to
 -- survive a failure.
 --
--- Pass `safety = "read"` when the effect only observes and the engine cannot
--- tell on its own; a preview may then perform it. The declaration is a claim,
--- not a sandbox: flows are trusted local code, and the classification exists
--- to keep a preview useful.
+-- The engine classifies each effect for `--dry-run` and `--step`; a flow cannot
+-- mark its own writes as reads.
 function hob.effect(ns, op, cmd, opts)
   opts = opts or {}
   local request = { ns = ns, op = op, cmd = cmd or {} }
   if opts.fallible then
     request["try"] = true
-  end
-  if opts.safety then
-    request.safety = opts.safety
   end
   if opts.fallible then
     -- A fallible call resumes with `(nil, message)`, so every result has to be

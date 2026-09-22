@@ -3,9 +3,11 @@
 
 use std::io::Write;
 
+use crate::driver::Control;
 use crate::paths::Paths;
 use crate::store;
 
+mod flags;
 mod flow;
 mod help;
 
@@ -26,55 +28,58 @@ where
     S: AsRef<str>,
 {
     let mut args = args.into_iter();
-    match args.next().as_ref().map(AsRef::as_ref) {
-        None | Some("-h" | "--help") => flow::write(out, &help::text()),
-        Some("-V" | "--version") => flow::write(out, &format!("{NAME} {VERSION}\n")),
-        Some("run") => flow::file(&collect(args), err),
-        Some("list") => {
-            let listing = listing();
-            flow::finish(store::list(&listing, &collect(args), out), err)
+    let first = args.next();
+    // The two fixed answers skip the parser: they are what a wrapper script runs
+    // most, and there is no flag they could combine with.
+    match first.as_ref().map(AsRef::as_ref) {
+        Some("-h" | "--help") => return flow::write(out, help::text()),
+        Some("-V" | "--version") => return flow::write(out, &format!("{NAME} {VERSION}\n")),
+        _ => {}
+    }
+    let invocation = match flags::parse(first.into_iter().chain(args)) {
+        Ok(invocation) => invocation,
+        Err(message) => return flow::fail(err, &format!("{message}\n\n{}", help::text())),
+    };
+    match invocation {
+        flags::Invocation::Help => flow::write(out, help::text()),
+        flags::Invocation::Version => flow::write(out, &format!("{NAME} {VERSION}\n")),
+        flags::Invocation::Command { control, words } => {
+            if words.is_empty() {
+                return flow::write(out, help::text());
+            }
+            dispatch(&words, control, out, err)
         }
-        Some("new") => {
-            let paths = Paths::resolve();
-            let listing = store::scan(&paths);
-            flow::finish(store::new(&paths, &listing, &collect(args), out), err)
-        }
-        Some("rm") => flow::finish(store::remove(&listing(), &collect(args), out), err),
-        Some("which") => flow::finish(store::which(&listing(), &collect(args), out), err),
-        Some(other) => dispatch(other, args, err),
     }
 }
 
-/// A bare word is a command name; a flag here is a mistake.
-fn dispatch<I, S>(name: &str, args: I, err: &mut dyn Write) -> u8
-where
-    I: IntoIterator<Item = S>,
-    S: AsRef<str>,
-{
-    if name.starts_with('-') {
-        return flow::fail(
-            err,
-            &format!("unknown argument `{name}`\n\n{}", help::text()),
-        );
-    }
-    let listing = listing();
-    match listing.effective(name) {
-        Some(command) => flow::command(command, &collect(args), err),
-        None => flow::fail(err, &store::unknown(name, &listing)),
+/// Run the verb or command the first word names.
+fn dispatch(words: &[String], control: Control, out: &mut dyn Write, err: &mut dyn Write) -> u8 {
+    let name = words[0].as_str();
+    let rest = &words[1..];
+    match name {
+        "run" => flow::file(rest, control, err),
+        "list" => {
+            let listing = listing();
+            flow::finish(store::list(&listing, rest, out), err)
+        }
+        "new" => {
+            let paths = Paths::resolve();
+            let listing = store::scan(&paths);
+            flow::finish(store::new(&paths, &listing, rest, out), err)
+        }
+        "rm" => flow::finish(store::remove(&listing(), rest, out), err),
+        "which" => flow::finish(store::which(&listing(), rest, out), err),
+        _ => {
+            let listing = listing();
+            match listing.effective(name) {
+                Some(command) => flow::command(command, rest, control, err),
+                None => flow::fail(err, &store::unknown(name, &listing)),
+            }
+        }
     }
 }
 
 /// The registry as the working directory and environment describe it.
 fn listing() -> store::Listing {
     store::scan(&Paths::resolve())
-}
-
-fn collect<I, S>(args: I) -> Vec<String>
-where
-    I: IntoIterator<Item = S>,
-    S: AsRef<str>,
-{
-    args.into_iter()
-        .map(|arg| arg.as_ref().to_owned())
-        .collect()
 }

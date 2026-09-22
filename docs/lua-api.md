@@ -46,10 +46,11 @@ semantics. Everything with a side effect goes through the bridge.
 
 `hob.effect(ns, op, cmd, opts) -> result`
 
-- `opts.safety = "read"` marks an effect a preview may perform; the engine
-  starts reading it when `--dry-run` lands.
 - `opts.fallible = true` returns `nil, message` instead of aborting.
 - An unknown `ns` or `op` is an error, never a silent no-op.
+
+The engine classifies every operation itself (`docs/control.md`), so `--dry-run`
+and `--step` cannot be talked out of refusing a write by a flow.
 
 `hob.abort(message, code?)` ends the flow without a traceback.
 `hob.assert(condition, message)` is `abort` when the condition is falsy.
@@ -112,7 +113,7 @@ there is no automatic loop. Each entry is `{id, name, arguments}`, with
 
 | Session | Length | What it does |
 | --- | --- | --- |
-| `:exec(argv, opts?)` | 4 | run a program; `stdin`, `timeout_ms`, `trim`, `stream`, `safety`, `fallible` |
+| `:exec(argv, opts?)` | 4 | run a program; `stdin`, `timeout_ms`, `trim`, `inherit` |
 | `:shell(line, opts?)` | 5 | run a shell line |
 | `:setenv(name, value)` | 6 | add or replace one environment override |
 | `:unset(name)` | 5 | remove one override |

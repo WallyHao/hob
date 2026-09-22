@@ -8,13 +8,17 @@ use serde_json::Value;
 use crate::effect::Failure;
 use crate::effect::ops::term::{Choice, Choose, Select};
 
+use super::defaults;
 use super::prompt::ask;
 
 /// Pick one option from a numbered list.
-pub(crate) fn select(request: &Select) -> Result<Value, Failure> {
+pub(crate) fn select(request: &Select, yes: bool) -> Result<Value, Failure> {
     let labels: Vec<&str> = request.options.iter().map(Choice::label).collect();
     if labels.is_empty() {
         return Err(Failure::new("`term.select` needs at least one option"));
+    }
+    if yes {
+        return Ok(defaults::select(request));
     }
     print_options(request.prompt.as_deref().unwrap_or("choose one"), &labels);
     loop {
@@ -39,10 +43,13 @@ pub(crate) fn select(request: &Select) -> Result<Value, Failure> {
 }
 
 /// Pick several options from a numbered list.
-pub(crate) fn choose(request: &Choose) -> Result<Value, Failure> {
+pub(crate) fn choose(request: &Choose, yes: bool) -> Result<Value, Failure> {
     let labels: Vec<&str> = request.options.iter().map(Choice::label).collect();
     if labels.is_empty() {
         return Err(Failure::new("`term.choose` needs at least one option"));
+    }
+    if yes {
+        return Ok(defaults::choose(request));
     }
     print_options(request.prompt.as_deref().unwrap_or("choose"), &labels);
     let min = request.min.unwrap_or(0);

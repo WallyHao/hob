@@ -30,6 +30,16 @@ impl Level {
             Self::Error => "error",
         }
     }
+
+    /// Severity as a number, compared against the verbosity flag.
+    pub(crate) fn rank(self) -> u8 {
+        match self {
+            Self::Trace => 3,
+            Self::Debug => 2,
+            Self::Info => 1,
+            Self::Warn | Self::Error => 0,
+        }
+    }
 }
 
 /// One log entry.

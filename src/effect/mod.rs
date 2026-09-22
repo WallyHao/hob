@@ -8,8 +8,8 @@
 //
 // `ns` selects the subsystem, `op` the operation inside it, and `cmd` carries
 // the arguments. `try = true` asks for `(nil, message)` instead of an abort.
-// `safety` is already on the wire; the preview that reads it arrives with
-// `--dry-run`.
+// The engine classifies each operation itself (`exec::safety`), so a preview
+// cannot be talked out of refusing a write.
 
 use serde_json::{Map, Value};
 

@@ -6,9 +6,9 @@
 mod chat;
 mod messages;
 mod provider;
-mod schema;
+pub(crate) mod schema;
 mod turn;
-mod wire;
+pub(crate) mod wire;
 
 use serde_json::Value;
 

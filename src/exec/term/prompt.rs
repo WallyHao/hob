@@ -11,7 +11,16 @@ use crate::effect::Failure;
 use crate::effect::ops::term::{Allow, Input};
 
 /// One line of input; an empty line takes the default.
-pub(crate) fn input(request: &Input) -> Result<Value, Failure> {
+pub(crate) fn input(request: &Input, yes: bool) -> Result<Value, Failure> {
+    if yes {
+        return Ok(Value::String(
+            request
+                .default
+                .clone()
+                .or_else(|| request.initial.clone())
+                .unwrap_or_default(),
+        ));
+    }
     let prompt = request.prompt.as_deref().unwrap_or("");
     let line = ask(prompt)?;
     if line.is_empty()
@@ -23,11 +32,14 @@ pub(crate) fn input(request: &Input) -> Result<Value, Failure> {
 }
 
 /// Yes or no; an empty line takes the default.
-pub(crate) fn allow(request: &Allow) -> Result<Value, Failure> {
+pub(crate) fn allow(request: &Allow, yes: bool) -> Result<Value, Failure> {
+    let default = request.default.unwrap_or(false);
+    if yes {
+        return Ok(Value::Bool(default));
+    }
     if let Some(detail) = &request.detail {
         eprintln!("{detail}");
     }
-    let default = request.default.unwrap_or(false);
     let hint = if default { "[Y/n]" } else { "[y/N]" };
     let question = request.prompt.as_deref().unwrap_or("continue?");
     let prompt = format!("{question} {hint} ");

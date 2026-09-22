@@ -2,14 +2,19 @@
 // Where effects are performed. Dispatch is by `ns.op` and nothing else, so an
 // unimplemented operation is a named error rather than a silent no-op.
 //
-// `State` is everything that lives as long as one flow: open sessions and the
-// directories templates resolve against. It is threaded through every call
-// rather than kept global, so one run stays a value instead of an ambient.
+// `State` is everything that lives as long as one flow: open sessions, the
+// directories templates resolve against, and the control flags that shape what
+// a run may do. It is threaded through every call rather than kept global, so
+// one run stays a value instead of an ambient.
 
 pub(crate) mod agent;
+pub(crate) mod describe;
 pub(crate) mod file;
 pub(crate) mod logs;
 pub(crate) mod proc;
+pub(crate) mod redact;
+pub(crate) mod safety;
+pub(crate) mod skipped;
 pub(crate) mod term;
 pub(crate) mod tmpl;
 
@@ -30,16 +35,22 @@ pub(crate) struct State {
     pub(crate) procs: HashMap<u64, proc::Session>,
     /// Open `agent` conversations by handle.
     pub(crate) chats: HashMap<u64, agent::Chat>,
+    /// Log level: 0 quiet, 1 normal, 2 debug, 3 trace.
+    pub(crate) verbosity: u8,
+    /// Answer questions with their default instead of reading stdin.
+    pub(crate) yes: bool,
     next_id: u64,
 }
 
 impl State {
     /// State for one run.
-    pub(crate) fn new(paths: Paths) -> Self {
+    pub(crate) fn new(paths: Paths, verbosity: u8, yes: bool) -> Self {
         Self {
             paths,
             procs: HashMap::new(),
             chats: HashMap::new(),
+            verbosity,
+            yes,
             next_id: 0,
         }
     }
@@ -67,7 +78,7 @@ pub(crate) fn perform(state: &mut State, request: &Request) -> Result<Value, Fai
         ("file", "write") => file::write(&decode(request)?),
         ("file", "stat") => file::stat(&decode(request)?),
         ("file", "list") => file::list(&decode(request)?),
-        ("logs", "write") => logs::write(&decode(request)?),
+        ("logs", "write") => logs::write(state, &decode(request)?),
         ("proc", "open") => proc::open(state, &decode(request)?),
         ("proc", "exec") => proc::exec(state, &decode(request)?),
         ("proc", "shell") => proc::shell(state, &decode(request)?),
@@ -80,16 +91,16 @@ pub(crate) fn perform(state: &mut State, request: &Request) -> Result<Value, Fai
         ("proc", "reset") => proc::reset(state, &decode(request)?),
         ("proc", "close") => proc::close(state, &decode(request)?),
         ("term", "print") => term::print(&decode(request)?),
-        ("term", "input") => term::input(&decode(request)?),
-        ("term", "allow") => term::allow(&decode(request)?),
-        ("term", "select") => term::select(&decode(request)?),
-        ("term", "choose") => term::choose(&decode(request)?),
+        ("term", "input") => term::input(&decode(request)?, state.yes),
+        ("term", "allow") => term::allow(&decode(request)?, state.yes),
+        ("term", "select") => term::select(&decode(request)?, state.yes),
+        ("term", "choose") => term::choose(&decode(request)?, state.yes),
         ("tmpl", "fetch") => tmpl::fetch(&state.paths, &decode(request)?),
         _ => Err(Failure::unknown(&request.ns, &request.op)),
     }
 }
 
-fn decode<T: DeserializeOwned>(request: &Request) -> Result<T, Failure> {
+pub(crate) fn decode<T: DeserializeOwned>(request: &Request) -> Result<T, Failure> {
     serde_json::from_value(request.cmd.clone())
         .map_err(|error| Failure::new(format!("`{}.{}`: {error}", request.ns, request.op)))
 }
