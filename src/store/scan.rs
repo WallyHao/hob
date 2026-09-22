@@ -8,12 +8,11 @@
 // symlinked file is a command like any other.
 
 use std::fs;
-use std::io::{BufRead, BufReader};
 use std::path::{Path, PathBuf};
 
 use crate::paths::Paths;
 
-use super::{Command, Ignored, Listing, Origin, RESERVED, valid_name};
+use super::{Command, Ignored, Listing, Origin, RESERVED, meta, valid_name};
 
 /// Collect the registry, project layer first.
 pub(crate) fn scan(paths: &Paths) -> Listing {
@@ -93,8 +92,8 @@ fn collect(dir: &Path, prefix: &str, origin: Origin, listing: &mut Listing) {
         listing.commands.push(Command {
             name,
             origin,
-            summary: summary(&path),
-            path,
+            path: path.clone(),
+            meta: meta::read(&path),
         });
     }
 }
@@ -106,21 +105,4 @@ fn join(prefix: &str, segment: &str) -> String {
     } else {
         format!("{prefix}/{segment}")
     }
-}
-
-/// The first non-empty line, when it is a `---` doc comment.
-fn summary(path: &Path) -> Option<String> {
-    let file = fs::File::open(path).ok()?;
-    for line in BufReader::new(file).lines().map_while(Result::ok) {
-        let line = line.trim();
-        if line.is_empty() {
-            continue;
-        }
-        return line
-            .strip_prefix("--- ")
-            .map(str::trim)
-            .filter(|text| !text.is_empty())
-            .map(str::to_owned);
-    }
-    None
 }

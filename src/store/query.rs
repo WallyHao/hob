@@ -30,7 +30,11 @@ pub(crate) fn list(listing: &Listing, rest: &[String], out: &mut dyn Write) -> R
             let (name, origin) = display(listing, command);
             name_width = name_width.max(name.len());
             origin_width = origin_width.max(origin.len());
-            let summary = command.summary.clone().unwrap_or_else(|| "-".to_owned());
+            let summary = command
+                .meta
+                .summary
+                .clone()
+                .unwrap_or_else(|| "-".to_owned());
             rows.push((name, origin, summary));
         }
         let _ = writeln!(

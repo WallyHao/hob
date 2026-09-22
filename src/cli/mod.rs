@@ -84,7 +84,7 @@ fn dispatch(
         _ => {
             let listing = listing();
             match listing.effective(name) {
-                Some(command) => flow::command(command, rest, control, trace, err),
+                Some(command) => flow::command(command, rest, control, trace, out, err),
                 None => flow::fail(err, &store::unknown(name, &listing)),
             }
         }

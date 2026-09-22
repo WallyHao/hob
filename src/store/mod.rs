@@ -8,6 +8,7 @@
 
 mod change;
 mod create;
+mod meta;
 mod query;
 mod scan;
 mod suggest;
@@ -20,6 +21,7 @@ use crate::effect::Failure;
 
 pub(crate) use change::remove;
 pub(crate) use create::new;
+pub(crate) use meta::Meta;
 pub(crate) use query::{list, unknown, which};
 pub(crate) use scan::scan;
 
@@ -49,7 +51,7 @@ pub(crate) struct Command {
     pub(crate) name: String,
     pub(crate) origin: Origin,
     pub(crate) path: PathBuf,
-    pub(crate) summary: Option<String>,
+    pub(crate) meta: Meta,
 }
 
 /// A file that looks like a command but is not one.

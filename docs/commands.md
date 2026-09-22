@@ -22,10 +22,11 @@ temporary configuration.
 ## Loading
 
 Discovery never executes a command. A file contributes a name, a path and its
-first non-empty line when that line starts with `--- ` (the summary `hob list`
-shows). The source is read only when the command runs, and it runs through the
-same driver as `hob run`: the flow sees `hob.command` (the name) and `hob.args`
-(everything after the name, flags included).
+`---` header: the first line that is not a known key is the summary `hob list`
+shows, and `--- usage:` and `--- args:` say how a call should look. The source is
+read only when the command runs, and it runs through the same driver as
+`hob run`: the flow sees `hob.command` (the name) and `hob.args` (everything
+after the name, flags included).
 
 Names are `[a-z][a-z0-9-]*` segments joined by `/`, at most 32 characters in
 total: `foo/bar.lua` is the command `foo/bar`, so a subdirectory is a namespace
@@ -57,6 +58,17 @@ described in `docs/control.md`.
 Unknown names exit 2 with a nearest-name suggestion (edit distance at most 2),
 or a `hob run` hint when the word looks like a path.
 
+## Help and arguments
+
+`hob <name> --help` prints what the header says -- summary, usage line,
+argument range and path -- and does not run the flow. `--help` is the command's
+own only when it is the only argument after the name, so a flow that takes a
+`--help` of its own still receives it.
+
+The header may also declare how many arguments a call takes: `--- args: 1`,
+`--- args: 2+` or `--- args: 0..2`. A call outside the range exits 2 with the
+usage line, and an unparseable `args:` line is ignored rather than guessed at.
+
 ## Shared libraries
 
 A command may `require` a shared module: `require("util.text")` resolves to
@@ -68,6 +80,5 @@ library adds modules rather than replacing the stdlib.
 
 ## Not in this layer
 
-Deferred until a real flow needs them: per-command `--help` and argument
-validation, a builtin command, and a compiled-command cache. The registry is the
-filesystem; there is no manifest.
+Deferred until a real flow needs them: a builtin command and a
+compiled-command cache. The registry is the filesystem; there is no manifest.

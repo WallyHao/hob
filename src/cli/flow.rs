@@ -42,8 +42,19 @@ pub(crate) fn command(
     args: &[String],
     control: Control,
     trace: Option<PathBuf>,
+    out: &mut dyn Write,
     err: &mut dyn Write,
 ) -> u8 {
+    // `--help` is the command's own only when it is the whole argument list, so
+    // a flow that takes a `--help` of its own still receives it.
+    if args.len() == 1 && matches!(args[0].as_str(), "-h" | "--help") {
+        return describe(command, out);
+    }
+    if let Some(spec) = command.meta.args
+        && let Err(message) = spec.check(args.len(), &usage(command))
+    {
+        return report(err, &message, USAGE_EXIT);
+    }
     let source = match fs::read_to_string(&command.path) {
         Ok(source) => source,
         Err(error) => {
@@ -55,6 +66,32 @@ pub(crate) fn command(
         }
     };
     execute(&source, &command.name, args, control, trace, err)
+}
+
+/// Print what a command says about itself, without running it.
+fn describe(command: &Command, out: &mut dyn Write) -> u8 {
+    let summary = command.meta.summary.as_deref().unwrap_or("no summary");
+    let _ = writeln!(out, "{} -- {summary}", command.name);
+    let _ = writeln!(out, "usage: {}", usage(command));
+    if let Some(args) = command.meta.args {
+        let _ = writeln!(out, "args:  {}", args.describe());
+    }
+    let _ = writeln!(
+        out,
+        "from:  {} ({})",
+        command.path.display(),
+        command.origin.label()
+    );
+    0
+}
+
+/// The usage line: the header's, or a derived default.
+fn usage(command: &Command) -> String {
+    command
+        .meta
+        .usage
+        .clone()
+        .unwrap_or_else(|| format!("{} [args...]", command.name))
 }
 
 /// Drive one flow and map its outcome to an exit code.
