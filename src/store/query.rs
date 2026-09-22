@@ -85,10 +85,6 @@ pub(crate) fn unknown(name: &str, listing: &Listing) -> String {
     let lua_file = Path::new(name)
         .extension()
         .is_some_and(|ext| ext.eq_ignore_ascii_case("lua"));
-    if lua_file || name.contains('/') {
-        let _ = write!(message, "\n  to run a file, use `hob run {name}`");
-        return message;
-    }
     let commands = listing.effective_all();
     let names = commands.iter().map(|command| command.name.as_str());
     let close = suggest(name, names);
@@ -99,6 +95,8 @@ pub(crate) fn unknown(name: &str, listing: &Listing) -> String {
             .collect::<Vec<_>>()
             .join(", ");
         let _ = write!(message, "\n  did you mean {list}?");
+    } else if lua_file || name.contains('/') {
+        let _ = write!(message, "\n  to run a file, use `hob run {name}`");
     }
     message
 }

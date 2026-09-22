@@ -41,12 +41,11 @@ impl Sandbox {
     }
 
     pub(crate) fn write_project(&self, name: &str, source: &str) {
-        fs::create_dir_all(self.commands()).expect("commands dir");
-        fs::write(self.commands().join(format!("{name}.lua")), source).expect("command file");
+        write(&self.commands(), name, source);
     }
 
     pub(crate) fn write_user(&self, name: &str, source: &str) {
-        fs::write(self.user_commands().join(format!("{name}.lua")), source).expect("user command");
+        write(&self.user_commands(), name, source);
     }
 
     pub(crate) fn run(&self, cwd: &Path, args: &[&str]) -> Output {
@@ -67,4 +66,13 @@ impl Drop for Sandbox {
     fn drop(&mut self) {
         let _ = fs::remove_dir_all(&self.root);
     }
+}
+
+/// Write a command file, creating the namespace directories a nested name needs.
+fn write(commands: &Path, name: &str, source: &str) {
+    let path = commands.join(format!("{name}.lua"));
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent).expect("commands dir");
+    }
+    fs::write(path, source).expect("command file");
 }

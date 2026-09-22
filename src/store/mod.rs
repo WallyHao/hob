@@ -90,14 +90,23 @@ impl Listing {
     }
 }
 
-/// Whether a file stem may name a command.
+/// Whether a name may identify a command.
+///
+/// A name is one or more `[a-z][a-z0-9-]*` segments joined by `/`, at most 32
+/// characters in total, so a subdirectory is a namespace rather than a second
+/// naming scheme.
 pub(crate) fn valid_name(name: &str) -> bool {
-    let mut chars = name.chars();
+    !name.is_empty() && name.len() <= 32 && name.split('/').all(valid_segment)
+}
+
+/// Whether one path segment may name a directory or a command.
+fn valid_segment(segment: &str) -> bool {
+    let mut chars = segment.chars();
     match chars.next() {
         Some(first) if first.is_ascii_lowercase() => {}
         _ => return false,
     }
-    name.len() <= 32 && chars.all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-')
+    chars.all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-')
 }
 
 /// Exactly one name, for the verbs that take nothing else.

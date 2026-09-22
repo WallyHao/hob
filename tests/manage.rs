@@ -91,3 +91,21 @@ fn rm_removes_only_resolved_commands() {
     let missing = sandbox.run_project(&["rm"]);
     assert_eq!(missing.status.code(), Some(2));
 }
+
+#[test]
+fn new_and_rm_handle_a_nested_name() {
+    let sandbox = Sandbox::new("nested");
+    let created = sandbox.run_project(&["new", "tools/hello"]);
+    assert!(created.status.success(), "{created:?}");
+    assert!(sandbox.commands().join("tools").join("hello.lua").exists());
+
+    let run = sandbox.run_project(&["tools/hello"]);
+    assert!(run.status.success(), "{run:?}");
+
+    let removed = sandbox.run_project(&["rm", "tools/hello"]);
+    assert!(removed.status.success(), "{removed:?}");
+    assert!(!sandbox.commands().join("tools").join("hello.lua").exists());
+
+    let bad = sandbox.run_project(&["new", "tools/Bad"]);
+    assert_eq!(bad.status.code(), Some(1));
+}

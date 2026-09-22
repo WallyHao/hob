@@ -62,8 +62,11 @@ pub(crate) fn new(
             path.display()
         )));
     }
-    fs::create_dir_all(&dir)
-        .map_err(|error| Failure::new(format!("cannot create {}: {error}", dir.display())))?;
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent).map_err(|error| {
+            Failure::new(format!("cannot create {}: {error}", parent.display()))
+        })?;
+    }
     fs::write(&path, template(&name))
         .map_err(|error| Failure::new(format!("cannot write {}: {error}", path.display())))?;
     let _ = writeln!(out, "created {}", path.display());
@@ -107,7 +110,8 @@ fn directory(paths: &Paths, target: Target) -> Result<PathBuf, Failure> {
 fn check(name: &str) -> Result<(), Failure> {
     if !valid_name(name) {
         return Err(Failure::new(format!(
-            "`{name}` is not a valid command name (expected [a-z][a-z0-9-]*, 32 characters at most)"
+            "`{name}` is not a valid command name \
+             (expected [a-z][a-z0-9-]* segments joined by `/`, 32 characters at most)"
         )));
     }
     if RESERVED.contains(&name) {

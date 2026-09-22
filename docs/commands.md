@@ -27,10 +27,13 @@ shows). The source is read only when the command runs, and it runs through the
 same driver as `hob run`: the flow sees `hob.command` (the name) and `hob.args`
 (everything after the name, flags included).
 
-Names are `[a-z][a-z0-9-]*`, at most 32 characters. Files that do not match, or
-that take a reserved verb as their name (`run`, `list`, `new`, `rm`, `which`),
-are not commands; `hob list` reports them under `ignored` rather than hiding
-them. Subdirectories are not searched.
+Names are `[a-z][a-z0-9-]*` segments joined by `/`, at most 32 characters in
+total: `foo/bar.lua` is the command `foo/bar`, so a subdirectory is a namespace
+rather than a second naming scheme. A symlinked directory is not searched, so
+discovery cannot loop; a symlinked file is a command like any other. Files whose
+names do not match, or that take a reserved verb as their name (`run`, `list`,
+`new`, `rm`, `which`), are not commands; `hob list` reports them under `ignored`
+rather than hiding them.
 
 ## Verbs
 
@@ -58,5 +61,5 @@ or a `hob run` hint when the word looks like a path.
 
 Deferred until a real flow needs them: shared Lua modules for commands
 (`require` still serves only the embedded modules), per-command `--help` and
-argument validation, subdirectories as namespaces, a builtin command, and a
-compiled-command cache. The registry is the filesystem; there is no manifest.
+argument validation, a builtin command, and a compiled-command cache. The
+registry is the filesystem; there is no manifest.
