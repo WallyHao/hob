@@ -164,10 +164,11 @@ today, and a name that is absolute or climbs out of the directory is refused.
 ## Sandbox
 
 `io`, `os`, `debug`, `loadfile`, `dofile`, `load`, `print` and `warn` are
-unreachable; `package.searchers` is reduced to the preload searcher, so
-`require` can only return a module that was installed before the flow started.
-Flows are trusted local code, but a flow that cannot read a file except
-through `hob.file` is what makes `--dry-run` meaningful.
+unreachable; `package.searchers` keeps only the preload searcher plus the
+library searcher, so `require` returns an embedded module or a file from
+`.hob/lib` (then the user's `lib/`) and nothing else — a module name is not a
+path (`docs/commands.md`). Flows are trusted local code, but a flow that cannot
+read a file except through `hob.file` is what makes `--dry-run` meaningful.
 
 ## LangChain, kept and dropped
 

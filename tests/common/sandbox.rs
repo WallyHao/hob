@@ -48,6 +48,14 @@ impl Sandbox {
         write(&self.user_commands(), name, source);
     }
 
+    pub(crate) fn write_project_lib(&self, name: &str, source: &str) {
+        write(&self.project().join(".hob").join("lib"), name, source);
+    }
+
+    pub(crate) fn write_user_lib(&self, name: &str, source: &str) {
+        write(&self.config.join("lib"), name, source);
+    }
+
     pub(crate) fn run(&self, cwd: &Path, args: &[&str]) -> Output {
         Command::new(BIN)
             .env("HOB_CONFIG_DIR", &self.config)

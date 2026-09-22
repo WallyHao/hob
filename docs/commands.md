@@ -57,9 +57,17 @@ described in `docs/control.md`.
 Unknown names exit 2 with a nearest-name suggestion (edit distance at most 2),
 or a `hob run` hint when the word looks like a path.
 
+## Shared libraries
+
+A command may `require` a shared module: `require("util.text")` resolves to
+`<project>/.hob/lib/util/text.lua`, then to the user's `lib/`, so a project
+library wins the way a project command does. Module names are lowercase words
+joined by dots; a slash or `..` is not a module name, so a library cannot climb
+out of its directory. The embedded `hob.*` modules are loaded first, so a
+library adds modules rather than replacing the stdlib.
+
 ## Not in this layer
 
-Deferred until a real flow needs them: shared Lua modules for commands
-(`require` still serves only the embedded modules), per-command `--help` and
-argument validation, a builtin command, and a compiled-command cache. The
-registry is the filesystem; there is no manifest.
+Deferred until a real flow needs them: per-command `--help` and argument
+validation, a builtin command, and a compiled-command cache. The registry is the
+filesystem; there is no manifest.

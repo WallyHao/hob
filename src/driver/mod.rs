@@ -16,7 +16,7 @@ use mlua::{Lua, MultiValue, Table};
 use crate::cli::trace::Trace;
 use crate::effect::Failure;
 use crate::exec;
-use crate::lua::{self, preload, pure};
+use crate::lua::{self, library, preload, pure};
 use crate::paths::Paths;
 
 pub(crate) use gate::{Control, Mode};
@@ -29,13 +29,15 @@ pub(crate) fn run(
     control: Control,
     trace: Option<PathBuf>,
 ) -> Result<(), Failure> {
+    let paths = Paths::resolve();
     let lua = lua::new_vm().map_err(Failure::from)?;
     let hob = preload::install(&lua).map_err(Failure::from)?;
+    library::install(&lua, &paths).map_err(Failure::from)?;
     pure::install(&lua, &hob).map_err(Failure::from)?;
     publish(&lua, &hob, name, args).map_err(Failure::from)?;
     let children = exec::proc::Children::new();
     interrupt::install(children.clone());
-    let mut state = exec::State::new(Paths::resolve(), control.verbosity, control.yes, children);
+    let mut state = exec::State::new(paths, control.verbosity, control.yes, children);
     let mut gate = gate::Gate::new(control);
     let mut trace = trace.map(|path| Trace::create(&path)).transpose()?;
 

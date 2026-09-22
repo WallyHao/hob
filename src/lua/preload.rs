@@ -1,12 +1,11 @@
 // --- lua::preload ---
 // Installs the module set, then closes the door.
 //
-// `require` is served entirely from `package.preload`, which is filled from
-// the embedded stdlib. The file searchers are removed afterwards, so the set
-// of modules a flow can load is fixed before the flow starts and no script can
-// pull code in from disk while it runs. User and project module directories
-// will be installed after the embedded ones, so a module of the same name can
-// replace the bundled one.
+// `require` is served from `package.preload` first, which is filled from the
+// embedded stdlib, and then from the library searcher that `lua::library` adds.
+// The file searchers are removed afterwards, so no script can pull code in from
+// an arbitrary path while it runs. Because the embedded modules are loaded and
+// cached here, a project library adds modules rather than replacing the stdlib.
 
 use mlua::{Lua, Table};
 

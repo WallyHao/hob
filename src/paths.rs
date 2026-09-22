@@ -61,6 +61,18 @@ impl Paths {
     pub(crate) fn user_prompts(&self) -> Option<PathBuf> {
         self.config.as_ref().map(|dir| dir.join("prompts"))
     }
+
+    /// `lib/` under the project root, when there is one.
+    pub(crate) fn project_libs(&self) -> Option<PathBuf> {
+        self.project
+            .as_ref()
+            .map(|root| root.join(".hob").join("lib"))
+    }
+
+    /// `lib/` under the user's configuration, when it can be found.
+    pub(crate) fn user_libs(&self) -> Option<PathBuf> {
+        self.config.as_ref().map(|dir| dir.join("lib"))
+    }
 }
 
 /// `$HOB_CONFIG_DIR`, else `$XDG_CONFIG_HOME/hob`, else `~/.config/hob`.
