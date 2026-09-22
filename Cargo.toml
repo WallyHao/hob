@@ -19,7 +19,12 @@ path = "src/lib.rs"
 name = "hob"
 path = "src/main.rs"
 
+[[bench]]
+name = "startup"
+harness = false
+
 [dev-dependencies]
+iai-callgrind = "0.16.1"
 stats_alloc = "0.1.10"
 
 [profile.release]
@@ -29,6 +34,14 @@ codegen-units = 1
 lto = true
 panic = "abort"
 strip = true
+
+[profile.bench]
+# iai-callgrind toggles callgrind collection on a wrapper function it generates
+# around each benchmark; LTO inlines that wrapper away and `strip` removes the
+# symbols valgrind matches, either of which makes every benchmark report zero
+# instructions. The bench profile must not inherit those release settings.
+lto = false
+strip = false
 
 [lints.rust]
 unsafe_code = "forbid"
