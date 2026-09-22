@@ -9,6 +9,7 @@ that has a flag of its own can still receive it.
 | --- | --- |
 | `--dry-run` | Perform reads, refuse everything else, print what was refused |
 | `--step` | Ask before every effect |
+| `--trace FILE` | Write a JSONL record of every effect (overwrites) |
 | `-v`, `-vv`, `-vvv` | Show `debug`, then `trace` log lines |
 | `-q`, `--quiet` | Only warnings and errors |
 | `-y`, `--yes` | Answer every question with its default |
@@ -55,3 +56,17 @@ a command is clipped. Values of environment variables named like credentials
 (`*_KEY`, `*_TOKEN`, `*_SECRET`, `*_PASSWORD`, `*_CREDENTIAL`) are masked in
 that line, so a preview cannot print a key. A flow cannot read the environment,
 but a value it obtained another way may still be one.
+
+## Trace
+
+`--trace FILE` writes one JSON object per line for every effect: a `request`
+record carrying the arguments, then an `outcome` record with `ok`, `error`,
+`dry-run` or `declined`, plus the error message when there was one. Every line
+carries `t`, milliseconds since the run started, so the shape of a slow flow is
+visible without wall-clock timestamps.
+
+The file is created fresh per run: appending would mix runs without a boundary
+between them. Arguments are recorded, with the same secret masking a preview
+applies, so a key cannot end up at rest in the trace. A write failure mid-run
+prints a warning and abandons the trace rather than failing the flow; a trace
+file that cannot be created at all fails the run before it starts.

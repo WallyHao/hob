@@ -5,11 +5,15 @@
 // trace is implemented once rather than at each call site.
 
 pub(crate) mod gate;
+mod step;
+
+use std::path::PathBuf;
 
 use mlua::thread::ThreadStatus;
-use mlua::{Lua, MultiValue, Table, Value};
+use mlua::{Lua, MultiValue, Table};
 
-use crate::effect::{Failure, Request, abort, json_to_lua};
+use crate::cli::trace::Trace;
+use crate::effect::Failure;
 use crate::exec;
 use crate::lua::{self, preload, pure};
 use crate::paths::Paths;
@@ -22,6 +26,7 @@ pub(crate) fn run(
     source: &str,
     args: &[String],
     control: Control,
+    trace: Option<PathBuf>,
 ) -> Result<(), Failure> {
     let lua = lua::new_vm().map_err(Failure::from)?;
     let hob = preload::install(&lua).map_err(Failure::from)?;
@@ -29,6 +34,7 @@ pub(crate) fn run(
     publish(&lua, &hob, name, args).map_err(Failure::from)?;
     let mut state = exec::State::new(Paths::resolve(), control.verbosity, control.yes);
     let mut gate = gate::Gate::new(control);
+    let mut trace = trace.map(|path| Trace::create(&path)).transpose()?;
 
     let body = lua
         .load(source)
@@ -44,65 +50,8 @@ pub(crate) fn run(
         if !matches!(thread.status(), ThreadStatus::Resumable) {
             return Ok(());
         }
-        resume = step(&lua, &mut state, &mut gate, &yielded)?;
+        resume = step::handle(&lua, &mut state, &mut gate, &mut trace, &yielded)?;
     }
-}
-
-/// Handle one yielded effect.
-fn step(
-    lua: &Lua,
-    state: &mut exec::State,
-    gate: &mut gate::Gate,
-    yielded: &MultiValue,
-) -> Result<MultiValue, Failure> {
-    let first = yielded
-        .front()
-        .ok_or_else(|| Failure::new("the flow yielded no value"))?;
-    let request = Request::from_lua(first)?;
-    // `abort` is control flow, not work: the flow is over the moment it is
-    // yielded, and nothing after it in the script ever runs.
-    if request.ns == "term" && request.op == "abort" {
-        return Err(abort_failure(&request));
-    }
-    match gate.decide(state, &request)? {
-        gate::Decision::Run => perform(lua, state, &request),
-        gate::Decision::Skip(value) => values(lua, &value),
-    }
-}
-
-/// Perform one effect and translate its outcome into a resume value.
-fn perform(lua: &Lua, state: &mut exec::State, request: &Request) -> Result<MultiValue, Failure> {
-    match exec::perform(state, request) {
-        Ok(value) => values(lua, &value),
-        Err(failure) if request.fallible => {
-            let message =
-                Value::String(lua.create_string(&failure.message).map_err(Failure::from)?);
-            Ok(MultiValue::from_vec(vec![Value::Nil, message]))
-        }
-        // Delivered as data so `hob.effect` raises inside the coroutine, where
-        // the flow can still catch it with `pcall`.
-        Err(failure) => values(lua, &abort(&failure.message)),
-    }
-}
-
-fn values(lua: &Lua, value: &serde_json::Value) -> Result<MultiValue, Failure> {
-    let value = json_to_lua(lua, value).map_err(Failure::from)?;
-    Ok(MultiValue::from_vec(vec![value]))
-}
-
-fn abort_failure(request: &Request) -> Failure {
-    let message = request
-        .cmd
-        .get("message")
-        .and_then(serde_json::Value::as_str)
-        .unwrap_or("aborted");
-    let code = request
-        .cmd
-        .get("code")
-        .and_then(serde_json::Value::as_u64)
-        .and_then(|code| u8::try_from(code).ok())
-        .unwrap_or(1);
-    Failure::with_code(message, code)
 }
 
 /// Publish the invocation before the body runs, so a module can read it

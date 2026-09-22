@@ -2,6 +2,7 @@
 // Argument parsing and top-level dispatch.
 
 use std::io::Write;
+use std::path::PathBuf;
 
 use crate::driver::Control;
 use crate::paths::Paths;
@@ -10,6 +11,7 @@ use crate::store;
 mod flags;
 mod flow;
 mod help;
+pub(crate) mod trace;
 
 /// Name of the binary, taken from the manifest so it is spelled once.
 pub const NAME: &str = env!("CARGO_PKG_NAME");
@@ -43,21 +45,31 @@ where
     match invocation {
         flags::Invocation::Help => flow::write(out, help::text()),
         flags::Invocation::Version => flow::write(out, &format!("{NAME} {VERSION}\n")),
-        flags::Invocation::Command { control, words } => {
+        flags::Invocation::Command {
+            control,
+            trace,
+            words,
+        } => {
             if words.is_empty() {
                 return flow::write(out, help::text());
             }
-            dispatch(&words, control, out, err)
+            dispatch(&words, control, trace, out, err)
         }
     }
 }
 
 /// Run the verb or command the first word names.
-fn dispatch(words: &[String], control: Control, out: &mut dyn Write, err: &mut dyn Write) -> u8 {
+fn dispatch(
+    words: &[String],
+    control: Control,
+    trace: Option<PathBuf>,
+    out: &mut dyn Write,
+    err: &mut dyn Write,
+) -> u8 {
     let name = words[0].as_str();
     let rest = &words[1..];
     match name {
-        "run" => flow::file(rest, control, err),
+        "run" => flow::file(rest, control, trace, err),
         "list" => {
             let listing = listing();
             flow::finish(store::list(&listing, rest, out), err)
@@ -72,7 +84,7 @@ fn dispatch(words: &[String], control: Control, out: &mut dyn Write, err: &mut d
         _ => {
             let listing = listing();
             match listing.effective(name) {
-                Some(command) => flow::command(command, rest, control, err),
+                Some(command) => flow::command(command, rest, control, trace, err),
                 None => flow::fail(err, &store::unknown(name, &listing)),
             }
         }

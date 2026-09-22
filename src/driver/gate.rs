@@ -42,8 +42,13 @@ pub(crate) struct Control {
 pub(crate) enum Decision {
     /// Perform it.
     Run,
-    /// Resume the flow with this value instead.
-    Skip(Value),
+    /// Resume the flow with this value instead, because `reason` refused it.
+    Skip {
+        /// `dry-run` or `declined`, recorded in the trace and printed.
+        reason: &'static str,
+        /// The conservative answer the flow sees.
+        value: Value,
+    },
 }
 
 /// The preview state.
@@ -83,9 +88,12 @@ impl Gate {
     }
 
     /// Print the effect and stand in for its result.
-    fn refuse(&self, state: &State, request: &Request, reason: &str) -> Decision {
+    fn refuse(&self, state: &State, request: &Request, reason: &'static str) -> Decision {
         eprintln!("{reason}: {}", self.line(request));
-        Decision::Skip(skipped::result(state, request))
+        Decision::Skip {
+            reason,
+            value: skipped::result(state, request),
+        }
     }
 
     /// Show the effect and ask; an empty line means yes.

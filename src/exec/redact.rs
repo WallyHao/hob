@@ -8,7 +8,9 @@
 // in. Masking is exact-match and length-guarded: a value shorter than eight
 // characters is left alone, because masking `1` would censor half the output.
 
-/// Masks known secret values in text.
+use serde_json::{Map, Value};
+
+/// Masks known secret values in text and in effect arguments.
 #[derive(Debug)]
 pub(crate) struct Redactor {
     secrets: Vec<String>,
@@ -43,6 +45,23 @@ impl Redactor {
         }
         masked
     }
+
+    /// Replace secrets inside every string of a JSON value.
+    pub(crate) fn value(&self, value: &Value) -> Value {
+        match value {
+            Value::String(text) => Value::String(self.text(text)),
+            Value::Array(items) => {
+                Value::Array(items.iter().map(|item| self.value(item)).collect())
+            }
+            Value::Object(fields) => Value::Object(
+                fields
+                    .iter()
+                    .map(|(key, item)| (key.clone(), self.value(item)))
+                    .collect::<Map<String, Value>>(),
+            ),
+            other => other.clone(),
+        }
+    }
 }
 
 /// Whether a variable name looks like it holds a credential.
@@ -58,6 +77,7 @@ fn looks_secret(name: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::{Redactor, looks_secret};
+    use serde_json::json;
 
     #[test]
     fn a_secret_is_masked_wherever_it_appears() {
@@ -72,6 +92,13 @@ mod tests {
     fn a_longer_secret_wins_over_a_shorter_one_inside_it() {
         let redactor = Redactor::new(vec!["secret".to_owned(), "secret-longer".to_owned()]);
         assert_eq!(redactor.text("secret-longer"), "***");
+    }
+
+    #[test]
+    fn secrets_are_masked_inside_nested_arguments() {
+        let redactor = Redactor::new(vec!["hunter2hunter2".to_owned()]);
+        let masked = redactor.value(&json!({ "argv": ["sh", "-c", "echo hunter2hunter2"] }));
+        assert_eq!(masked["argv"][2], "echo ***");
     }
 
     #[test]

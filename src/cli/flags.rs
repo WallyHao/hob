@@ -5,6 +5,8 @@
 // --dry-run` is how the flag is naturally typed. Everything after `--` belongs
 // to the flow, so a command that has a flag of its own can still receive it.
 
+use std::path::PathBuf;
+
 use crate::driver::{Control, Mode};
 
 /// One parsed command line.
@@ -17,6 +19,7 @@ pub(crate) enum Invocation {
     /// A command, its control flags and its own words.
     Command {
         control: Control,
+        trace: Option<PathBuf>,
         words: Vec<String>,
     },
 }
@@ -33,6 +36,7 @@ where
     let mut yes = false;
     let mut help = false;
     let mut version = false;
+    let mut trace: Option<PathBuf> = None;
     let mut words = Vec::new();
     let mut rest = args.into_iter();
     while let Some(word) = rest.next() {
@@ -46,6 +50,19 @@ where
             "-V" | "--version" if words.is_empty() => version = true,
             "--dry-run" => mode = pick(mode, Mode::DryRun, word)?,
             "--step" => mode = pick(mode, Mode::Step, word)?,
+            "--trace" => {
+                let path = rest
+                    .next()
+                    .ok_or_else(|| "`--trace` needs a file".to_owned())?;
+                trace = Some(PathBuf::from(path.as_ref()));
+            }
+            _ if word.starts_with("--trace=") => {
+                let path = word.trim_start_matches("--trace=");
+                if path.is_empty() {
+                    return Err("`--trace` needs a file".to_owned());
+                }
+                trace = Some(PathBuf::from(path));
+            }
             "-y" | "--yes" => yes = true,
             "-q" | "--quiet" => quiet = true,
             "--verbose" => verbose += 1,
@@ -71,6 +88,7 @@ where
             verbosity: if quiet { 0 } else { 1 + verbose },
             yes,
         },
+        trace,
         words,
     })
 }

@@ -23,6 +23,7 @@ pub(crate) const fn text() -> &'static str {
         "\nOptions:\n",
         "  --dry-run      Perform reads only and print the effects that were refused\n",
         "  --step         Ask before performing each effect\n",
+        "  --trace FILE   Write a JSONL record of every effect (overwrites)\n",
         "  -v, --verbose  Show debug detail; repeat for trace\n",
         "  -q, --quiet    Only report warnings and errors\n",
         "  -y, --yes      Answer every prompt with its default\n",
