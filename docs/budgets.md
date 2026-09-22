@@ -8,12 +8,15 @@ each gate; this page is the index.
 
 | Gate | Where | Budget | Measured | Kind |
 | --- | --- | --- | --- | --- |
-| Release binary size | `scripts/check_binary_size.sh` | 8 MiB | 5505 KiB | absolute |
+| Release binary size | `scripts/check_binary_size.sh` | 8 MiB | 5530 KiB | absolute |
 | Peak heap, `hob --version` | `scripts/check_heap.sh` | 16 KiB | 1736 B | absolute |
 | Peak heap, `hob run` (one-line flow) | `scripts/check_heap.sh` | 128 KiB | 68 KiB | absolute |
 | Startup allocations | `tests/allocations.rs` | 4 KiB, 32 allocations | 983 B, 2 allocations | absolute |
-| Normal dependencies | `scripts/check_deps.sh` | 150 crates, denylist | 100 crates | absolute |
+| Normal dependencies | `scripts/check_deps.sh` | 150 crates, denylist | 103 crates | absolute |
 | Startup instructions | `benches/startup.rs` | against a saved baseline | 1534 / 810 / 3521 | relative |
+
+Interrupt cleanup -- exit 130 with no surviving process group -- is asserted by
+`tests/interrupt.rs` rather than held to a number.
 
 All measurements are from the pinned toolchain in `rust-toolchain.toml`.
 Massif and the counting allocator are deterministic; do not replace them with
@@ -48,7 +51,6 @@ override the scripts for local experiments, never for CI.
 These are designed but cannot exist before the feature they measure:
 
 - Scaling ratio tests (10/100/1000 steps) for parse, plan and context assembly.
-- Cancellation latency and orphan-process checks for running effects.
 - LLM request, retry and byte budgets against a local mock server.
 - Instruction counts for flow startup (Lua VM plus preload), not just CLI
   dispatch.

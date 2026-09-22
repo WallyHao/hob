@@ -3,6 +3,7 @@
 // it away; a handle from `open` keeps the working directory, the environment
 // overrides and the profile between commands.
 
+mod children;
 pub(crate) mod run;
 pub(crate) mod session;
 pub(crate) mod spawn;
@@ -17,6 +18,7 @@ use crate::effect::ops::proc::{
 };
 use crate::exec::State;
 
+pub(crate) use children::Children;
 pub(crate) use session::Session;
 
 /// Open a session and return its handle.
@@ -32,16 +34,16 @@ pub(crate) fn open(state: &mut State, request: &Open) -> Result<Value, Failure> 
 }
 
 /// Run one program.
-pub(crate) fn exec(state: &State, request: &Exec) -> Result<Value, Failure> {
-    with(state, &request.options, |session, options| {
-        run::program(session, &request.argv, options)
+pub(crate) fn exec(state: &mut State, request: &Exec) -> Result<Value, Failure> {
+    with(state, &request.options, |state, session, options| {
+        run::program(state, session, &request.argv, options)
     })
 }
 
 /// Run one shell line.
-pub(crate) fn shell(state: &State, request: &Shell) -> Result<Value, Failure> {
-    with(state, &request.options, |session, options| {
-        run::shell(session, &request.line, options)
+pub(crate) fn shell(state: &mut State, request: &Shell) -> Result<Value, Failure> {
+    with(state, &request.options, |state, session, options| {
+        run::shell(state, session, &request.line, options)
     })
 }
 
@@ -98,11 +100,11 @@ pub(crate) fn close(state: &mut State, request: &Handle) -> Result<Value, Failur
 fn with<T>(
     state: &State,
     options: &Options,
-    call: impl FnOnce(&Session, &Options) -> Result<T, Failure>,
+    call: impl FnOnce(&State, &Session, &Options) -> Result<T, Failure>,
 ) -> Result<T, Failure> {
     match options.session {
-        Some(id) => call(session_ref(state, id)?, options),
-        None => call(&Session::open(None, BTreeMap::new(), None)?, options),
+        Some(id) => call(state, session_ref(state, id)?, options),
+        None => call(state, &Session::open(None, BTreeMap::new(), None)?, options),
     }
 }
 

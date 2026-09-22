@@ -27,6 +27,11 @@ impl Flow {
         &self.dir
     }
 
+    /// The configuration directory the binary is pointed at.
+    pub(crate) fn config(&self) -> &Path {
+        &self.config
+    }
+
     /// Write a file inside the sandbox, creating parents.
     pub(crate) fn write(&self, relative: &str, contents: &str) {
         let path = self.dir.join(relative);

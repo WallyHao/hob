@@ -70,3 +70,13 @@ between them. Arguments are recorded, with the same secret masking a preview
 applies, so a key cannot end up at rest in the trace. A write failure mid-run
 prints a warning and abandons the trace rather than failing the flow; a trace
 file that cannot be created at all fails the run before it starts.
+
+## Interrupt
+
+Ctrl-C ends the run immediately. The handler lives on its own thread, so it works
+while the main thread is blocked in a read, a wait or a request; it first kills
+every live process group with `SIGKILL`, then exits 130. Commands run in their
+own process group, so a command that started a tree (`sh -c 'long & wait'`) is
+killed whole and cannot leave orphans behind, and the same group kill backs
+`timeout_ms`. A trace is already flushed line by line, so an interrupt does not
+lose it.

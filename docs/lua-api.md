@@ -127,6 +127,8 @@ there is no automatic loop. Each entry is `{id, name, arguments}`, with
 `timeout_ms` kills the child and reports code 124, as `timeout(1)` does; each
 stream keeps its first megabyte, and `truncated` says when more arrived.
 `profile` is shell text evaluated before each shell line, not before `exec`.
+Every command becomes the head of its own process group, so a timeout or Ctrl-C
+kills the tree it started rather than leaving orphans (`docs/control.md`).
 
 ## `hob.term` (implemented)
 

@@ -5,6 +5,7 @@
 // trace is implemented once rather than at each call site.
 
 pub(crate) mod gate;
+mod interrupt;
 mod step;
 
 use std::path::PathBuf;
@@ -32,7 +33,9 @@ pub(crate) fn run(
     let hob = preload::install(&lua).map_err(Failure::from)?;
     pure::install(&lua, &hob).map_err(Failure::from)?;
     publish(&lua, &hob, name, args).map_err(Failure::from)?;
-    let mut state = exec::State::new(Paths::resolve(), control.verbosity, control.yes);
+    let children = exec::proc::Children::new();
+    interrupt::install(children.clone());
+    let mut state = exec::State::new(Paths::resolve(), control.verbosity, control.yes, children);
     let mut gate = gate::Gate::new(control);
     let mut trace = trace.map(|path| Trace::create(&path)).transpose()?;
 

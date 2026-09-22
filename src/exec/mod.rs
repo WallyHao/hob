@@ -35,6 +35,8 @@ pub(crate) struct State {
     pub(crate) procs: HashMap<u64, proc::Session>,
     /// Open `agent` conversations by handle.
     pub(crate) chats: HashMap<u64, agent::Chat>,
+    /// Live process groups, shared with the interrupt handler.
+    pub(crate) children: proc::Children,
     /// Log level: 0 quiet, 1 normal, 2 debug, 3 trace.
     pub(crate) verbosity: u8,
     /// Answer questions with their default instead of reading stdin.
@@ -44,11 +46,12 @@ pub(crate) struct State {
 
 impl State {
     /// State for one run.
-    pub(crate) fn new(paths: Paths, verbosity: u8, yes: bool) -> Self {
+    pub(crate) fn new(paths: Paths, verbosity: u8, yes: bool, children: proc::Children) -> Self {
         Self {
             paths,
             procs: HashMap::new(),
             chats: HashMap::new(),
+            children,
             verbosity,
             yes,
             next_id: 0,

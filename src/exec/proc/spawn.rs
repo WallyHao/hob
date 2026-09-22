@@ -11,6 +11,8 @@ use serde_json::Value;
 
 use crate::effect::Failure;
 
+use super::children::kill_group;
+
 /// How much of each stream is kept; the rest is counted, not stored.
 pub(super) const LIMIT: usize = 1024 * 1024;
 
@@ -40,7 +42,7 @@ pub(super) enum Waited {
     TimedOut,
 }
 
-/// Wait for the child, killing it when the timeout passes.
+/// Wait for the child, killing its process group when the timeout passes.
 pub(super) fn wait(child: &mut Child, timeout_ms: Option<u64>) -> Result<Waited, Failure> {
     let Some(millis) = timeout_ms else {
         return child
@@ -53,7 +55,7 @@ pub(super) fn wait(child: &mut Child, timeout_ms: Option<u64>) -> Result<Waited,
         match child.try_wait() {
             Ok(Some(status)) => return Ok(Waited::Exited(status)),
             Ok(None) if Instant::now() >= deadline => {
-                let _ = child.kill();
+                kill_group(child.id());
                 let _ = child.wait();
                 return Ok(Waited::TimedOut);
             }

@@ -1,7 +1,8 @@
 // --- exec::proc::run ---
 // Spawning a command in a session. Output is drained on separate threads while
 // the child runs, because a child that fills a pipe while its parent waits for
-// it to exit would deadlock.
+// it to exit would deadlock. Every child becomes its own process group, so a
+// timeout or an interrupt can kill the tree the command started.
 
 use std::io::Write as _;
 use std::process::{Command, Stdio};
@@ -11,11 +12,13 @@ use serde_json::{Value, json};
 
 use crate::effect::Failure;
 use crate::effect::ops::proc::Options;
+use crate::exec::State;
 use crate::exec::proc::Session;
 use crate::exec::proc::spawn::{TIMEOUT_CODE, Waited, drain, trim, wait};
 
 /// Run one program in a session.
 pub(crate) fn program(
+    state: &State,
     session: &Session,
     argv: &[String],
     options: &Options,
@@ -25,23 +28,34 @@ pub(crate) fn program(
     };
     let mut command = Command::new(head);
     command.args(tail);
-    finish(session, &mut command, options)
+    finish(state, session, &mut command, options)
 }
 
 /// Run one shell line in a session, after its profile.
-pub(crate) fn shell(session: &Session, line: &str, options: &Options) -> Result<Value, Failure> {
+pub(crate) fn shell(
+    state: &State,
+    session: &Session,
+    line: &str,
+    options: &Options,
+) -> Result<Value, Failure> {
     let script = match session.profile() {
         Some(profile) => format!("{profile}\n{line}"),
         None => line.to_owned(),
     };
     let mut command = Command::new("sh");
     command.arg("-c").arg(script);
-    finish(session, &mut command, options)
+    finish(state, session, &mut command, options)
 }
 
 /// Apply the context, spawn, wait and turn the result into a value.
-fn finish(session: &Session, command: &mut Command, options: &Options) -> Result<Value, Failure> {
+fn finish(
+    state: &State,
+    session: &Session,
+    command: &mut Command,
+    options: &Options,
+) -> Result<Value, Failure> {
     command.current_dir(session.cwd()).envs(session.env());
+    own_group(command);
     if options.inherit {
         command
             .stdin(Stdio::inherit())
@@ -58,6 +72,7 @@ fn finish(session: &Session, command: &mut Command, options: &Options) -> Result
     let mut child = command
         .spawn()
         .map_err(|error| Failure::new(format!("cannot run `{program}`: {error}")))?;
+    let _tracked = state.children.track(child.id());
     if !options.inherit
         && let Some(text) = &options.stdin
         && let Some(mut pipe) = child.stdin.take()
@@ -92,3 +107,14 @@ fn finish(session: &Session, command: &mut Command, options: &Options) -> Result
         "truncated": out.1 || err.1,
     }))
 }
+
+/// Put the child at the head of its own process group, so a signal can reach the
+/// whole tree it starts and not the run that spawned it.
+#[cfg(unix)]
+fn own_group(command: &mut Command) {
+    use std::os::unix::process::CommandExt as _;
+    command.process_group(0);
+}
+
+#[cfg(not(unix))]
+fn own_group(_command: &mut Command) {}
