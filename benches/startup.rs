@@ -38,9 +38,14 @@ fn unknown_argument() -> u8 {
     black_box(dispatch(&["--definitely-not-a-command"]))
 }
 
+#[library_benchmark]
+fn flow() -> u8 {
+    black_box(dispatch(&["run", "benches/data/flow.lua"]))
+}
+
 library_benchmark_group!(
     name = startup;
-    benchmarks = version, help, unknown_argument
+    benchmarks = version, help, unknown_argument, flow
 );
 
 main!(library_benchmark_groups = startup);

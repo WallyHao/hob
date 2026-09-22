@@ -87,5 +87,8 @@ either layer shadows it like any other name, and `rm` refuses to delete it.
 
 ## Not in this layer
 
-Deferred until a real flow needs it: a compiled-command cache. The registry is
-the filesystem; there is no manifest.
+A compiled-command cache was measured and dropped: compiling the flow is a
+rounding error next to starting the VM (about 4% of a 2.4M-instruction cold
+start, `docs/budgets.md`), so a cache would add invalidation and binary-chunk
+risk for a fraction of a millisecond. The registry is the filesystem; there is
+no manifest.

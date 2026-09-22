@@ -14,6 +14,7 @@ each gate; this page is the index.
 | Startup allocations | `tests/allocations.rs` | 4 KiB, 32 allocations | 983 B, 2 allocations | absolute |
 | Normal dependencies | `scripts/check_deps.sh` | 150 crates, denylist | 108 crates | absolute |
 | Startup instructions | `benches/startup.rs` | against a saved baseline | 1534 / 810 / 3521 | relative |
+| Flow startup instructions | `benches/startup.rs` | against a saved baseline | 2472672 | relative |
 
 Interrupt cleanup -- exit 130 with no surviving process group -- is asserted by
 `tests/interrupt.rs` rather than held to a number.
@@ -52,7 +53,5 @@ These are designed but cannot exist before the feature they measure:
 
 - Scaling ratio tests (10/100/1000 steps) for parse, plan and context assembly.
 - LLM request, retry and byte budgets against a local mock server.
-- Instruction counts for flow startup (Lua VM plus preload), not just CLI
-  dispatch.
 
 Each lands in the same pull request as the feature, not after it.
