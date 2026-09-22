@@ -10,6 +10,7 @@ use mlua::{Lua, MultiValue, Table, Value};
 use crate::effect::{Failure, Request, abort, json_to_lua};
 use crate::exec;
 use crate::lua::{self, preload, pure};
+use crate::paths::Paths;
 
 /// Run a flow to completion. `name` is the command name the flow sees.
 pub(crate) fn run(name: &str, source: &str, args: &[String]) -> Result<(), Failure> {
@@ -17,6 +18,7 @@ pub(crate) fn run(name: &str, source: &str, args: &[String]) -> Result<(), Failu
     let hob = preload::install(&lua).map_err(Failure::from)?;
     pure::install(&lua, &hob).map_err(Failure::from)?;
     publish(&lua, &hob, name, args).map_err(Failure::from)?;
+    let mut state = exec::State::new(Paths::resolve());
 
     let body = lua
         .load(source)
@@ -32,12 +34,12 @@ pub(crate) fn run(name: &str, source: &str, args: &[String]) -> Result<(), Failu
         if !matches!(thread.status(), ThreadStatus::Resumable) {
             return Ok(());
         }
-        resume = step(&lua, &yielded)?;
+        resume = step(&lua, &mut state, &yielded)?;
     }
 }
 
 /// Handle one yielded effect.
-fn step(lua: &Lua, yielded: &MultiValue) -> Result<MultiValue, Failure> {
+fn step(lua: &Lua, state: &mut exec::State, yielded: &MultiValue) -> Result<MultiValue, Failure> {
     let first = yielded
         .front()
         .ok_or_else(|| Failure::new("the flow yielded no value"))?;
@@ -47,7 +49,7 @@ fn step(lua: &Lua, yielded: &MultiValue) -> Result<MultiValue, Failure> {
     if request.ns == "term" && request.op == "abort" {
         return Err(abort_failure(&request));
     }
-    match exec::perform(&request) {
+    match exec::perform(state, &request) {
         Ok(value) => values(lua, &value),
         Err(failure) if request.fallible => {
             let message =

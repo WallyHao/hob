@@ -1,7 +1,7 @@
 # Lua API
 
-Status: design. The names and rules below are fixed; implementation lands
-module by module, and each module's section says what exists today.
+Status: implemented, except where a section says otherwise. The names and
+rules below are fixed; each module's section says what exists today.
 
 ## The layer model
 
@@ -46,7 +46,8 @@ semantics. Everything with a side effect goes through the bridge.
 
 `hob.effect(ns, op, cmd, opts) -> result`
 
-- `opts.safety = "read"` marks an effect a preview may perform.
+- `opts.safety = "read"` marks an effect a preview may perform; the engine
+  starts reading it when `--dry-run` lands.
 - `opts.fallible = true` returns `nil, message` instead of aborting.
 - An unknown `ns` or `op` is an error, never a silent no-op.
 
@@ -63,13 +64,19 @@ published by the engine before the body runs.
 | `hob.assert` | 6 | abort unless the condition holds |
 | `hob.abort` | 5 | end the flow with a message and code |
 
-## `hob.agent` (planned)
+## `hob.agent` (implemented)
 
 | Function | Length | What it does |
 | --- | --- | --- |
-| `agent.ask{...}` | 3 | one round trip; `prompt` or `messages`, `system`, `schema`, `provider`, `model`, `temperature`, `max_tokens`, `max_attempts`, `thinking`, `effort`, `tools`, `stream`, `on_delta`, `show_reasoning`; returns `answer, meta` |
+| `agent.ask{...}` | 3 | one round trip; `prompt` or `messages`, `system`, `schema`, `provider`, `model`, `temperature`, `max_tokens`, `max_attempts`, `effort`, `tools`; returns `answer, meta` |
 | `agent.open{...}` | 4 | open a conversation; returns the chat handle |
 | `agent.list{...}` | 4 | model ids a provider lists |
+
+`provider` is a registry id (`"deepseek"`) or an inline table
+`{ id, base_url, api_key_env, headers }` for a local gateway; the key still
+comes from the environment. `model` is required: ids change, so the engine does
+not guess one. A `schema` makes the answer JSON that is validated in Rust and,
+up to `max_attempts`, asked for again.
 
 | Chat handle | Length | What it does |
 | --- | --- | --- |
@@ -82,9 +89,10 @@ published by the engine before the body runs.
 
 `meta` is `{provider, model, attempts, usage, tool_calls, reasoning?}`. Tools
 are data: the response carries `tool_calls` and the flow decides what to run;
-there is no automatic loop.
+there is no automatic loop. Each entry is `{id, name, arguments}`, with
+`arguments` the raw JSON string the model produced.
 
-## `hob.file` (planned)
+## `hob.file` (implemented)
 
 | Function | Length | What it does |
 | --- | --- | --- |
@@ -93,7 +101,7 @@ there is no automatic loop.
 | `file.stat(path)` | 4 | `{size, mtime, kind}` or `nil`; `kind` is `"file"`, `"dir"` or `"link"` |
 | `file.list(path)` | 4 | entry names, not recursive, sorted |
 
-## `hob.proc` (planned)
+## `hob.proc` (implemented)
 
 | Function | Length | What it does |
 | --- | --- | --- |
@@ -115,8 +123,11 @@ there is no automatic loop.
 | `:close()` | 5 | drop the session |
 
 `exec` results are `{code, stdout, stderr, ok, duration_ms, truncated}`.
+`timeout_ms` kills the child and reports code 124, as `timeout(1)` does; each
+stream keeps its first megabyte, and `truncated` says when more arrived.
+`profile` is shell text evaluated before each shell line, not before `exec`.
 
-## `hob.term` (print implemented)
+## `hob.term` (implemented)
 
 | Function | Length | What it does |
 | --- | --- | --- |
@@ -138,11 +149,12 @@ a Lua value and raises on malformed input (`pcall` to catch). The hand-written
 bridge keeps `nil` and empty tables meaningful instead of exposing mlua's
 serde quirks.
 
-## `hob.tmpl` (render implemented)
+## `hob.tmpl` (implemented)
 
 `render(text, vars)` (6) substitutes `{name}` placeholders.
-`fetch(name)` (5) resolves a template from the project `.hob/prompts/`, the
-user's `~/.config/hob/prompts/`, then the built-ins.
+`fetch(name)` (5) resolves a template from the project `.hob/prompts/`, then
+the user's `~/.config/hob/prompts/`. Built-in templates are reserved but empty
+today, and a name that is absolute or climbs out of the directory is refused.
 
 ## Sandbox
 
@@ -172,5 +184,6 @@ through `hob.file` is what makes `--dry-run` meaningful.
 
 ## Deferred
 
-`file.glob`, `file.remove`, `term.edit`, `proc` streaming, `agent` streaming
-and the mock provider, time helpers, raw HTTP, caching, retrieval.
+`file.glob`, `file.remove`, `term.edit`, `proc` and `agent` streaming (and so
+`on_delta`), `thinking` and `show_reasoning`, the mock provider, time helpers,
+raw HTTP, caching, retrieval.

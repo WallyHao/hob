@@ -49,6 +49,18 @@ impl Paths {
             .unwrap_or_default();
         root.join(".hob").join("commands")
     }
+
+    /// `prompts/` under the project root, when there is one.
+    pub(crate) fn project_prompts(&self) -> Option<PathBuf> {
+        self.project
+            .as_ref()
+            .map(|root| root.join(".hob").join("prompts"))
+    }
+
+    /// `prompts/` under the user's configuration, when it can be found.
+    pub(crate) fn user_prompts(&self) -> Option<PathBuf> {
+        self.config.as_ref().map(|dir| dir.join("prompts"))
+    }
 }
 
 /// `$HOB_CONFIG_DIR`, else `$XDG_CONFIG_HOME/hob`, else `~/.config/hob`.

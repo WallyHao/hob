@@ -15,6 +15,24 @@ A provider with its own dialect (Anthropic Messages, Gemini) is the point
 where a new `Protocol` variant and a module beside `client.rs` appear. The
 seam exists; the abstraction is not built until the second dialect is real.
 
+## Inline providers
+
+A flow may pass a provider as a table instead of a registry id:
+
+```lua
+hob.agent.ask{
+  provider = { id = "local", base_url = "http://127.0.0.1:8080", api_key_env = "LOCAL_KEY" },
+  model = "qwen3",
+  prompt = "hi",
+}
+```
+
+That is how a local gateway (llama.cpp, vLLM, Ollama) or a test server is
+reached without adding a registry entry. The key policy is unchanged: the
+table names an environment variable, never a key. `headers` carries what a
+gateway needs for routing. The registry holds no model, because model ids
+change per request, so `agent` requires `model` rather than guessing one.
+
 ## Keys
 
 hob reads keys from the environment and never writes them anywhere.
@@ -40,6 +58,9 @@ second lookup source, so the policy stays in one place.
 ## Deliberately deferred
 
 - Streaming (SSE) responses; the request shape already carries `stream`.
-- Retry and per-request timeout policy.
-- Base-URL overrides for gateways and mirrors.
-- `hob models` as a command; `Client::models` is the underlying call.
+- Retry and per-request timeout policy inside the client; `agent.max_attempts`
+  retries a failed call at the flow level.
+- A provider entry in a configuration file; inline specs cover local gateways
+  until then.
+- `hob models` as a command; `Client::models` is the underlying call, exposed
+  as `agent.list`.

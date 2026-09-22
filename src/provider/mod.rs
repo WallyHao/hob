@@ -16,13 +16,15 @@ mod registry;
 mod secret;
 mod spec;
 mod types;
+mod usage;
 
 pub use client::Client;
 pub use error::Error;
 pub use registry::{builtins, find};
 pub use secret::Secret;
 pub use spec::{Protocol, ProviderSpec};
-pub use types::{ChatRequest, ChatResponse, Choice, Message, Role};
+pub use types::{ChatRequest, ChatResponse, Choice, FunctionCall, Message, Role, ToolCall};
+pub use usage::Usage;
 
 /// Result of a provider operation.
 pub type Result<T> = std::result::Result<T, Error>;

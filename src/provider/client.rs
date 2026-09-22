@@ -54,9 +54,11 @@ impl Client {
             Protocol::OpenAi => "chat/completions",
         };
         let response = self
-            .http
-            .post(self.spec.endpoint(path))
-            .bearer_auth(self.key.expose())
+            .headers(
+                self.http
+                    .post(self.spec.endpoint(path))
+                    .bearer_auth(self.key.expose()),
+            )
             .json(request)
             .send()
             .await
@@ -70,14 +72,24 @@ impl Client {
             Protocol::OpenAi => "models",
         };
         let response = self
-            .http
-            .get(self.spec.endpoint(path))
-            .bearer_auth(self.key.expose())
+            .headers(
+                self.http
+                    .get(self.spec.endpoint(path))
+                    .bearer_auth(self.key.expose()),
+            )
             .send()
             .await
             .map_err(|source| self.transport(source))?;
         let listing: ModelsResponse = self.decode(response).await?;
         Ok(listing.data.into_iter().map(|model| model.id).collect())
+    }
+
+    /// Add the extra headers a gateway needs for routing.
+    fn headers(&self, mut request: reqwest::RequestBuilder) -> reqwest::RequestBuilder {
+        for (name, value) in &self.spec.headers {
+            request = request.header(name.as_str(), value.as_str());
+        }
+        request
     }
 
     /// Turn a response into `T`, or into an error that cannot contain the key.

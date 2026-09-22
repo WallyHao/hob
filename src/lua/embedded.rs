@@ -9,7 +9,10 @@
 /// Modules registered in `package.preload`, keyed by the name `require` uses.
 pub(crate) const MODULES: &[(&str, &str)] = &[
     ("hob", include_str!("../../lua/hob/init.lua")),
+    ("hob.agent", include_str!("../../lua/hob/agent.lua")),
+    ("hob.file", include_str!("../../lua/hob/file.lua")),
     ("hob.logs", include_str!("../../lua/hob/logs.lua")),
+    ("hob.proc", include_str!("../../lua/hob/proc.lua")),
     ("hob.term", include_str!("../../lua/hob/term.lua")),
     ("hob.tmpl", include_str!("../../lua/hob/tmpl.lua")),
 ];

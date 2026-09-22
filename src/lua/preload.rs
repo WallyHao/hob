@@ -22,7 +22,7 @@ pub(crate) fn install(lua: &Lua) -> mlua::Result<Table> {
     let hob = require(lua, "hob")?;
     // Attach the modules here, after `hob` is cached: a module that requires
     // `hob` at load time would otherwise see a half-initialised table.
-    for name in ["logs", "term", "tmpl"] {
+    for name in ["agent", "file", "logs", "proc", "term", "tmpl"] {
         hob.set(name, require(lua, &format!("hob.{name}"))?)?;
     }
     // Flows write `hob.term.print`, not `require("hob").term.print`, so the

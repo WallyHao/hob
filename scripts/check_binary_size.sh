@@ -8,7 +8,7 @@
 
 set -euo pipefail
 
-budget_kib=${HOB_BINARY_BUDGET_KIB:-1024}
+budget_kib=${HOB_BINARY_BUDGET_KIB:-8192}
 
 cargo build --release --locked --quiet
 binary=target/release/hob

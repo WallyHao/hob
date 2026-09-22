@@ -1,4 +1,4 @@
-// --- exec::term ---
+// --- exec::term::print ---
 // Terminal output. Styling is named in the effect and spelled here, so the
 // engine decides whether colour makes sense and a flow never sees an escape.
 

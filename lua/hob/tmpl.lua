@@ -5,6 +5,8 @@
 -- raises when a name has no value, because a prompt that silently loses a
 -- variable is worse than one that fails.
 
+local hob = require("hob")
+
 local tmpl = {}
 
 --- Substitute `{name}` placeholders in `text` from `vars`.
@@ -17,6 +19,15 @@ function tmpl.render(text, vars)
     end
     return tostring(value)
   end))
+end
+
+--- Read a prompt template by name.
+--
+-- Names resolve against the project's `.hob/prompts/`, then the user's
+-- `prompts/` directory, so a checkout can ship its own prompts and still fall
+-- back to the ones kept next to the configuration.
+function tmpl.fetch(name)
+  return hob.effect("tmpl", "fetch", { name = name })
 end
 
 return tmpl
