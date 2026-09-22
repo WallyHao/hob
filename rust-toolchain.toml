@@ -1,0 +1,8 @@
+# --- rust-toolchain.toml ---
+# Pinned so that budgets measured here (binary size, instruction counts) stay
+# comparable, and so CI and every contributor compile with the same compiler.
+
+[toolchain]
+channel = "1.98.1"
+components = ["clippy", "llvm-tools-preview", "rustfmt"]
+profile = "minimal"
