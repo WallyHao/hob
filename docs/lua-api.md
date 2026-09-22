@@ -73,11 +73,13 @@ published by the engine before the body runs.
 | `agent.open{...}` | 4 | open a conversation; returns the chat handle |
 | `agent.list{...}` | 4 | model ids a provider lists |
 
-`provider` is a registry id (`"deepseek"`) or an inline table
-`{ id, base_url, api_key_env, headers }` for a local gateway; the key still
-comes from the environment. `model` is required: ids change, so the engine does
-not guess one. A `schema` makes the answer JSON that is validated in Rust and,
-up to `max_attempts`, asked for again.
+`provider` is a registry id (`"deepseek"`), a name from `config.toml`, or an
+inline table `{ id, base_url, api_key_env, protocol, headers }` for a local
+gateway; the key still comes from the environment. `model` is required: ids
+change, so the engine does not guess one. A `schema` makes the answer JSON that
+is validated in Rust and, up to `max_attempts`, asked for again. `effort` is
+forwarded as `reasoning_effort`, which the Anthropic dialect refuses because it
+has no equivalent.
 
 | Chat handle | Length | What it does |
 | --- | --- | --- |

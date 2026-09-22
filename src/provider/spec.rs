@@ -14,6 +14,8 @@ pub enum Protocol {
     /// `OpenAI` chat completions, spoken by `DeepSeek` and by most gateways
     /// that copy it, so one client covers all of them.
     OpenAi,
+    /// Anthropic Messages: a system prompt of its own and typed content blocks.
+    Anthropic,
 }
 
 /// Everything needed to reach a provider except the key.

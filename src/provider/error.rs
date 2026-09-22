@@ -55,6 +55,30 @@ pub enum Error {
         /// Underlying parse error.
         source: serde_json::Error,
     },
+    /// The answer was valid JSON but not the shape the dialect promised.
+    #[error("`{provider}` answered with an unexpected shape: {message}")]
+    Shape {
+        /// Provider that answered.
+        provider: String,
+        /// What was wrong with the answer.
+        message: String,
+    },
+    /// The request could not be encoded for the provider's dialect.
+    #[error("cannot build a `{provider}` request: {message}")]
+    Request {
+        /// Provider the request was for.
+        provider: String,
+        /// What could not be encoded.
+        message: String,
+    },
+    /// The dialect has no equivalent for an option the request carries.
+    #[error("`{provider}` does not support `{option}`")]
+    Unsupported {
+        /// Provider whose dialect was asked.
+        provider: String,
+        /// Option that has no equivalent.
+        option: String,
+    },
 }
 
 impl Error {

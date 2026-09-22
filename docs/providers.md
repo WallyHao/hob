@@ -11,9 +11,22 @@ SiliconFlow, a local gateway) is one entry in `registry.rs` plus a test that
 the entry names its own key variable. No client code changes, because they all
 speak the same chat-completions dialect.
 
-A provider with its own dialect (Anthropic Messages, Gemini) is the point
-where a new `Protocol` variant and a module beside `client.rs` appear. The
-seam exists; the abstraction is not built until the second dialect is real.
+A provider with its own dialect is a new `Protocol` variant plus a module under
+`src/provider/wire/`. Anthropic Messages is the second dialect and the first
+user of that seam.
+
+## Dialects
+
+`protocol` names the wire dialect: `openai` (the default) or `anthropic`. The
+translation lives in `src/provider/wire/`, one module per dialect, so the client
+stays HTTP and a third dialect is another module and a match arm.
+
+The Messages dialect differs where the formats do: the system prompt is its own
+field, content is a list of typed blocks, and a tool call carries its arguments
+as an object rather than a JSON string. `max_tokens` is required by Anthropic,
+so a request without one uses 4096; `effort` has no equivalent and is refused
+rather than dropped. Tools are accepted in the chat-completions shape and
+translated, while an already-translated tool (`input_schema`) passes through.
 
 ## Inline providers
 

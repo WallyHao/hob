@@ -1,16 +1,16 @@
 // --- provider::client ---
 // The one HTTP client, bound to a provider and a key at construction. It owns
-// the two calls the engine needs: one completion and one model listing.
+// the two calls the engine needs: one completion and one model listing. The
+// dialect -- paths, auth headers, body and response shapes -- lives in
+// `wire`, so this module is only HTTP.
 
 use std::time::Duration;
-
-use serde::Deserialize;
-use serde::de::DeserializeOwned;
 
 use super::error::Error;
 use super::secret::{self, Secret};
 use super::spec::{Protocol, ProviderSpec};
 use super::types::{ChatRequest, ChatResponse};
+use super::wire;
 
 /// Long enough for a slow model, short enough that a script cannot hang all
 /// day on a dead connection.
@@ -50,38 +50,38 @@ impl Client {
 
     /// One chat completion.
     pub async fn chat(&self, request: &ChatRequest) -> Result<ChatResponse, Error> {
-        let path = match self.spec.protocol {
-            Protocol::OpenAi => "chat/completions",
-        };
+        let path = wire::chat_path(self.spec.protocol);
+        let body = wire::request(&self.spec, request)?;
         let response = self
-            .headers(
-                self.http
-                    .post(self.spec.endpoint(path))
-                    .bearer_auth(self.key.expose()),
-            )
-            .json(request)
+            .headers(self.authorized(self.http.post(self.spec.endpoint(path))))
+            .json(&body)
             .send()
             .await
             .map_err(|source| self.transport(source))?;
-        self.decode(response).await
+        let body = self.body(response).await?;
+        wire::response(&self.spec, &body)
     }
 
     /// The models the provider lists.
     pub async fn models(&self) -> Result<Vec<String>, Error> {
-        let path = match self.spec.protocol {
-            Protocol::OpenAi => "models",
-        };
+        let path = wire::models_path(self.spec.protocol);
         let response = self
-            .headers(
-                self.http
-                    .get(self.spec.endpoint(path))
-                    .bearer_auth(self.key.expose()),
-            )
+            .headers(self.authorized(self.http.get(self.spec.endpoint(path))))
             .send()
             .await
             .map_err(|source| self.transport(source))?;
-        let listing: ModelsResponse = self.decode(response).await?;
-        Ok(listing.data.into_iter().map(|model| model.id).collect())
+        let body = self.body(response).await?;
+        wire::models(&self.spec, &body)
+    }
+
+    /// Authenticate the request the way the dialect expects.
+    fn authorized(&self, request: reqwest::RequestBuilder) -> reqwest::RequestBuilder {
+        match self.spec.protocol {
+            Protocol::OpenAi => request.bearer_auth(self.key.expose()),
+            Protocol::Anthropic => request
+                .header("x-api-key", self.key.expose())
+                .header("anthropic-version", wire::ANTHROPIC_VERSION),
+        }
     }
 
     /// Add the extra headers a gateway needs for routing.
@@ -92,8 +92,8 @@ impl Client {
         request
     }
 
-    /// Turn a response into `T`, or into an error that cannot contain the key.
-    async fn decode<T: DeserializeOwned>(&self, response: reqwest::Response) -> Result<T, Error> {
+    /// Read the body, or turn a non-success status into an error without the key.
+    async fn body(&self, response: reqwest::Response) -> Result<String, Error> {
         let status = response.status();
         let body = response
             .text()
@@ -102,10 +102,7 @@ impl Client {
         if !status.is_success() {
             return Err(Error::api(&self.spec.id, status.as_u16(), &body, &self.key));
         }
-        serde_json::from_str(&body).map_err(|source| Error::Decode {
-            provider: self.spec.id.clone(),
-            source,
-        })
+        Ok(body)
     }
 
     fn transport(&self, source: reqwest::Error) -> Error {
@@ -114,14 +111,4 @@ impl Client {
             source,
         }
     }
-}
-
-#[derive(Debug, Deserialize)]
-struct ModelsResponse {
-    data: Vec<ModelInfo>,
-}
-
-#[derive(Debug, Deserialize)]
-struct ModelInfo {
-    id: String,
 }

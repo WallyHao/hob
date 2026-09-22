@@ -18,6 +18,7 @@ mod secret;
 mod spec;
 mod types;
 mod usage;
+mod wire;
 
 pub use client::Client;
 pub use error::Error;
