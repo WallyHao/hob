@@ -6,6 +6,8 @@ use std::collections::BTreeMap;
 use serde::Deserialize;
 use serde_json::Value;
 
+use crate::provider::Protocol;
+
 /// Where to send the request: a registered id, or an inline spec.
 #[derive(Debug, Deserialize)]
 #[serde(untagged)]
@@ -26,6 +28,9 @@ pub(crate) struct Spec {
     pub(crate) base_url: String,
     /// Environment variable holding the key.
     pub(crate) api_key_env: String,
+    /// Dialect used for requests; `openai` when absent.
+    #[serde(default)]
+    pub(crate) protocol: Option<Protocol>,
     /// Extra headers, e.g. a gateway's routing key.
     #[serde(default)]
     pub(crate) headers: BTreeMap<String, String>,

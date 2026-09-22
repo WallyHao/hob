@@ -5,8 +5,11 @@
 
 use std::collections::BTreeMap;
 
+use serde::Deserialize;
+
 /// The wire dialect a provider speaks.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "lowercase")]
 pub enum Protocol {
     /// `OpenAI` chat completions, spoken by `DeepSeek` and by most gateways
     /// that copy it, so one client covers all of them.

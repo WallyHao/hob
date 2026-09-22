@@ -6,22 +6,23 @@ use crate::effect::Failure;
 use crate::effect::ops::agent::Provider;
 use crate::provider::{ChatRequest, ChatResponse, Client, Protocol, ProviderSpec};
 
-/// Resolve the provider option: a registry id or an inline spec.
+/// Resolve the provider option: a registry id, a config entry or an inline spec.
 pub(crate) fn spec(provider: Option<&Provider>) -> Result<ProviderSpec, Failure> {
     match provider {
-        None => {
-            crate::provider::find("deepseek").ok_or_else(|| Failure::new("no default provider"))
-        }
-        Some(Provider::Id(id)) => crate::provider::find(id)
-            .ok_or_else(|| Failure::new(format!("unknown provider `{id}`"))),
+        None => resolve("deepseek"),
+        Some(Provider::Id(id)) => resolve(id),
         Some(Provider::Inline(spec)) => Ok(ProviderSpec {
             id: spec.id.clone(),
             base_url: spec.base_url.clone(),
             api_key_env: spec.api_key_env.clone(),
-            protocol: Protocol::OpenAi,
+            protocol: spec.protocol.unwrap_or(Protocol::OpenAi),
             headers: spec.headers.clone(),
         }),
     }
+}
+
+fn resolve(id: &str) -> Result<ProviderSpec, Failure> {
+    crate::provider::resolve(id).map_err(|error| Failure::new(error.to_string()))
 }
 
 /// The model is required: ids change, so the engine does not guess one.

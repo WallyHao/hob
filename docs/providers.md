@@ -33,6 +33,27 @@ table names an environment variable, never a key. `headers` carries what a
 gateway needs for routing. The registry holds no model, because model ids
 change per request, so `agent` requires `model` rather than guessing one.
 
+## The configuration file
+
+`config.toml` in the user's configuration directory defines providers that are
+not in the registry:
+
+```toml
+[providers.local]
+base_url = "http://127.0.0.1:8080"
+api_key_env = "LOCAL_KEY"
+headers = { X-Route = "team" }
+```
+
+`protocol` is `openai` when absent. The registry wins for an id it knows, so a
+`[providers.deepseek]` table cannot silently redirect the built-in definition;
+the file only adds names. The key policy is unchanged: an entry names the
+variable to read, never the key itself. A file that cannot be parsed fails the
+call that needed it, with the path and the parser's message.
+
+A flow names a provider as a registry id, a name from the configuration file, or
+an inline table; the first two are looked up in that order.
+
 ## Keys
 
 hob reads keys from the environment and never writes them anywhere.
@@ -60,7 +81,5 @@ second lookup source, so the policy stays in one place.
 - Streaming (SSE) responses; the request shape already carries `stream`.
 - Retry and per-request timeout policy inside the client; `agent.max_attempts`
   retries a failed call at the flow level.
-- A provider entry in a configuration file; inline specs cover local gateways
-  until then.
 - `hob models` as a command; `Client::models` is the underlying call, exposed
   as `agent.list`.

@@ -11,6 +11,7 @@
 // disk; `Secret` keeps them out of debug output and error messages.
 
 mod client;
+mod config;
 mod error;
 mod registry;
 mod secret;
@@ -28,3 +29,11 @@ pub use usage::Usage;
 
 /// Result of a provider operation.
 pub type Result<T> = std::result::Result<T, Error>;
+
+/// Look up a provider by id: the registry first, then the configuration file.
+pub fn resolve(id: &str) -> Result<ProviderSpec> {
+    if let Some(spec) = find(id) {
+        return Ok(spec);
+    }
+    config::find(id)?.ok_or_else(|| Error::UnknownProvider(id.to_owned()))
+}

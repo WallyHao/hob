@@ -11,8 +11,16 @@ use super::secret::Secret;
 #[derive(Debug, Error)]
 pub enum Error {
     /// No provider is registered under that id.
-    #[error("unknown provider `{0}`")]
+    #[error("unknown provider `{0}`: pass an inline table or define it in config.toml")]
     UnknownProvider(String),
+    /// The configuration file could not be read or parsed.
+    #[error("cannot read `{path}`: {message}")]
+    Config {
+        /// Path of the configuration file.
+        path: String,
+        /// What went wrong.
+        message: String,
+    },
     /// The environment variable the provider names is unset or empty.
     #[error("no API key for `{provider}`: set {env} in the environment")]
     MissingKey {

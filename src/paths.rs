@@ -64,7 +64,7 @@ impl Paths {
 }
 
 /// `$HOB_CONFIG_DIR`, else `$XDG_CONFIG_HOME/hob`, else `~/.config/hob`.
-fn config_dir() -> Option<PathBuf> {
+pub(crate) fn config_dir() -> Option<PathBuf> {
     if let Some(dir) = env::var_os("HOB_CONFIG_DIR") {
         return Some(PathBuf::from(dir));
     }
