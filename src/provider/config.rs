@@ -41,12 +41,17 @@ struct Entry {
 
 /// Look up a provider defined in the user's configuration file.
 pub(crate) fn find(id: &str) -> Result<Option<ProviderSpec>, Error> {
+    Ok(all()?.into_iter().find(|spec| spec.id == id))
+}
+
+/// Every provider the configuration file defines.
+pub(crate) fn all() -> Result<Vec<ProviderSpec>, Error> {
     let Some(path) = paths::config_dir().map(|dir| dir.join("config.toml")) else {
-        return Ok(None);
+        return Ok(Vec::new());
     };
     let text = match std::fs::read_to_string(&path) {
         Ok(text) => text,
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(Vec::new()),
         Err(error) => {
             return Err(Error::Config {
                 path: path.display().to_string(),
@@ -58,13 +63,17 @@ pub(crate) fn find(id: &str) -> Result<Option<ProviderSpec>, Error> {
         path: path.display().to_string(),
         message: error.to_string(),
     })?;
-    Ok(file.providers.get(id).map(|entry| ProviderSpec {
-        id: id.to_owned(),
-        base_url: entry.base_url.clone(),
-        api_key_env: entry.api_key_env.clone(),
-        protocol: entry.protocol.unwrap_or(Protocol::OpenAi),
-        headers: entry.headers.clone(),
-    }))
+    Ok(file
+        .providers
+        .into_iter()
+        .map(|(id, entry)| ProviderSpec {
+            id,
+            base_url: entry.base_url,
+            api_key_env: entry.api_key_env,
+            protocol: entry.protocol.unwrap_or(Protocol::OpenAi),
+            headers: entry.headers,
+        })
+        .collect())
 }
 
 #[cfg(test)]

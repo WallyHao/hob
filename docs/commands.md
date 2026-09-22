@@ -9,7 +9,7 @@ stays available for files and CI; a bare word is looked up in the registry.
 | --- | --- | --- |
 | project | `<project>/.hob/commands/*.lua` | highest |
 | user | `$HOB_CONFIG_DIR`, else `$XDG_CONFIG_HOME/hob`, else `~/.config/hob`, plus `/commands/*.lua` | lower |
-| builtin | compiled into the binary | reserved, empty today |
+| builtin | compiled into the binary | lowest |
 
 The project root is the nearest ancestor of the working directory holding
 `.hob` or `.git`, so a command works from any subdirectory of a checkout. A
@@ -78,7 +78,14 @@ joined by dots; a slash or `..` is not a module name, so a library cannot climb
 out of its directory. The embedded `hob.*` modules are loaded first, so a
 library adds modules rather than replacing the stdlib.
 
+## Builtins
+
+`doctor` is compiled into the binary. It prints the version, the configuration
+and project directories, how many commands are effective in each layer, and
+which provider key variables are set -- by name only, never by value. A file in
+either layer shadows it like any other name, and `rm` refuses to delete it.
+
 ## Not in this layer
 
-Deferred until a real flow needs them: a builtin command and a
-compiled-command cache. The registry is the filesystem; there is no manifest.
+Deferred until a real flow needs it: a compiled-command cache. The registry is
+the filesystem; there is no manifest.

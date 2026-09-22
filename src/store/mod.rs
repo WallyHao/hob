@@ -21,7 +21,7 @@ use crate::effect::Failure;
 
 pub(crate) use change::remove;
 pub(crate) use create::new;
-pub(crate) use meta::Meta;
+pub(crate) use meta::{Args, Meta};
 pub(crate) use query::{list, unknown, which};
 pub(crate) use scan::scan;
 
@@ -33,6 +33,7 @@ pub(crate) const RESERVED: &[&str] = &["list", "new", "rm", "run", "which"];
 pub(crate) enum Origin {
     Project,
     User,
+    Builtin,
 }
 
 impl Origin {
@@ -41,8 +42,18 @@ impl Origin {
         match self {
             Self::Project => "project",
             Self::User => "user",
+            Self::Builtin => "builtin",
         }
     }
+}
+
+/// Where a command's code lives.
+#[derive(Debug, Clone)]
+pub(crate) enum Source {
+    /// A Lua file in the project or user layer.
+    File(PathBuf),
+    /// Compiled into the binary.
+    Builtin,
 }
 
 /// One candidate command, in precedence order.
@@ -50,8 +61,18 @@ impl Origin {
 pub(crate) struct Command {
     pub(crate) name: String,
     pub(crate) origin: Origin,
-    pub(crate) path: PathBuf,
+    pub(crate) source: Source,
     pub(crate) meta: Meta,
+}
+
+impl Command {
+    /// The file the command lives in, when it is not a builtin.
+    pub(crate) fn path(&self) -> Option<&PathBuf> {
+        match &self.source {
+            Source::File(path) => Some(path),
+            Source::Builtin => None,
+        }
+    }
 }
 
 /// A file that looks like a command but is not one.

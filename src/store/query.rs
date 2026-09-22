@@ -77,10 +77,18 @@ pub(crate) fn which(
             out,
             "{status:<9}  {:<7}  {}",
             command.origin.label(),
-            command.path.display()
+            where_from(command)
         );
     }
     Ok(())
+}
+
+/// The path a layer resolves to, or a word for a builtin.
+fn where_from(command: &Command) -> String {
+    command.path().map_or_else(
+        || "compiled in".to_owned(),
+        |path| path.display().to_string(),
+    )
 }
 
 /// The message for a name that resolves to nothing, with a suggestion.

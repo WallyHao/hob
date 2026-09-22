@@ -8,7 +8,7 @@ use std::path::{Path, PathBuf};
 
 use crate::driver::{self, Control};
 use crate::effect::Failure;
-use crate::store::Command;
+use crate::store::{Command, Source};
 
 use super::USAGE_EXIT;
 
@@ -55,12 +55,15 @@ pub(crate) fn command(
     {
         return report(err, &message, USAGE_EXIT);
     }
-    let source = match fs::read_to_string(&command.path) {
+    let Source::File(path) = &command.source else {
+        return finish(crate::builtin::run(&command.name, out), err);
+    };
+    let source = match fs::read_to_string(path) {
         Ok(source) => source,
         Err(error) => {
             return report(
                 err,
-                &format!("cannot read `{}`: {error}", command.path.display()),
+                &format!("cannot read `{}`: {error}", path.display()),
                 1,
             );
         }
@@ -76,12 +79,11 @@ fn describe(command: &Command, out: &mut dyn Write) -> u8 {
     if let Some(args) = command.meta.args {
         let _ = writeln!(out, "args:  {}", args.describe());
     }
-    let _ = writeln!(
-        out,
-        "from:  {} ({})",
-        command.path.display(),
-        command.origin.label()
+    let from = command.path().map_or_else(
+        || "compiled in".to_owned(),
+        |path| format!("{} ({})", path.display(), command.origin.label()),
     );
+    let _ = writeln!(out, "from:  {from}");
     0
 }
 

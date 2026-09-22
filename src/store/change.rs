@@ -19,15 +19,20 @@ pub(crate) fn remove(
     let command = listing
         .effective(name)
         .ok_or_else(|| Failure::new(super::unknown(name, listing)))?;
-    fs::remove_file(&command.path).map_err(|error| {
-        Failure::new(format!("cannot remove {}: {error}", command.path.display()))
-    })?;
-    let _ = writeln!(out, "removed {}", command.path.display());
+    let Some(path) = command.path() else {
+        return Err(Failure::new(format!(
+            "`{name}` is a builtin and cannot be removed"
+        )));
+    };
+    fs::remove_file(path)
+        .map_err(|error| Failure::new(format!("cannot remove {}: {error}", path.display())))?;
+    let _ = writeln!(out, "removed {}", path.display());
     if let Some(next) = listing.chain(name).nth(1) {
         let _ = writeln!(
             out,
             "note: `{name}` now resolves to {}",
-            next.path.display()
+            next.path()
+                .map_or_else(|| "a builtin".to_owned(), |path| path.display().to_string())
         );
     }
     Ok(())

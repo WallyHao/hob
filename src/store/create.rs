@@ -9,7 +9,7 @@ use crate::cli::USAGE_EXIT;
 use crate::effect::Failure;
 use crate::paths::Paths;
 
-use super::{Listing, RESERVED, valid_name};
+use super::{Command, Listing, RESERVED, valid_name};
 
 /// Where `new` writes.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -70,12 +70,9 @@ pub(crate) fn new(
     fs::write(&path, template(&name))
         .map_err(|error| Failure::new(format!("cannot write {}: {error}", path.display())))?;
     let _ = writeln!(out, "created {}", path.display());
-    if let Some(shadow) = listing.effective(&name) {
-        let _ = writeln!(
-            out,
-            "note: `{name}` is shadowed by {}",
-            shadow.path.display()
-        );
+    // A file can shadow a file; shadowing a builtin is the point of the layer.
+    if let Some(shadow) = listing.effective(&name).and_then(Command::path) {
+        let _ = writeln!(out, "note: `{name}` is shadowed by {}", shadow.display());
     }
     Ok(())
 }

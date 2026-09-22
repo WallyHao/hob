@@ -4,6 +4,7 @@
 // The binary and the benchmarks share this entry point, so the startup budgets
 // measure the real dispatch code instead of a copy of it.
 
+mod builtin;
 mod cli;
 mod driver;
 mod effect;

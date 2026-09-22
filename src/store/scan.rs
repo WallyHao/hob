@@ -10,11 +10,12 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
+use crate::builtin;
 use crate::paths::Paths;
 
-use super::{Command, Ignored, Listing, Origin, RESERVED, meta, valid_name};
+use super::{Command, Ignored, Listing, Origin, RESERVED, Source, meta, valid_name};
 
-/// Collect the registry, project layer first.
+/// Collect the registry, project layer first, builtins last.
 pub(crate) fn scan(paths: &Paths) -> Listing {
     let mut listing = Listing::default();
     let mut tiers: Vec<(Origin, PathBuf)> = Vec::new();
@@ -27,6 +28,7 @@ pub(crate) fn scan(paths: &Paths) -> Listing {
     for (origin, dir) in tiers {
         collect(&dir, "", origin, &mut listing);
     }
+    listing.commands.extend(builtin::commands());
     listing
 }
 
@@ -92,7 +94,7 @@ fn collect(dir: &Path, prefix: &str, origin: Origin, listing: &mut Listing) {
         listing.commands.push(Command {
             name,
             origin,
-            path: path.clone(),
+            source: Source::File(path.clone()),
             meta: meta::read(&path),
         });
     }

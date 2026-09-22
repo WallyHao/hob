@@ -38,3 +38,14 @@ pub fn resolve(id: &str) -> Result<ProviderSpec> {
     }
     config::find(id)?.ok_or_else(|| Error::UnknownProvider(id.to_owned()))
 }
+
+/// Every provider hob knows: the registry, then the configuration file.
+pub fn known() -> Result<Vec<ProviderSpec>> {
+    let mut all = builtins();
+    for spec in config::all()? {
+        if !all.iter().any(|known| known.id == spec.id) {
+            all.push(spec);
+        }
+    }
+    Ok(all)
+}

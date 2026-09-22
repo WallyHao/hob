@@ -27,6 +27,16 @@ impl Paths {
         }
     }
 
+    /// The project root, when the working directory is inside one.
+    pub(crate) fn project_root(&self) -> Option<&Path> {
+        self.project.as_deref()
+    }
+
+    /// The user's configuration root, when it can be found.
+    pub(crate) fn config_root(&self) -> Option<&Path> {
+        self.config.as_deref()
+    }
+
     /// `commands/` under the user's configuration, when it can be found.
     pub(crate) fn user_commands(&self) -> Option<PathBuf> {
         self.config.as_ref().map(|dir| dir.join("commands"))

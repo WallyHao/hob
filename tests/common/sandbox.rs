@@ -27,6 +27,11 @@ impl Sandbox {
         self.root.join("project")
     }
 
+    /// The configuration directory the binary is pointed at.
+    pub(crate) fn config(&self) -> &Path {
+        &self.config
+    }
+
     /// A directory with no project above it, to exercise the user layer.
     pub(crate) fn outside(&self) -> PathBuf {
         self.root.join("outside")
