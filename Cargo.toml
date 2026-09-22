@@ -19,6 +19,9 @@ path = "src/lib.rs"
 name = "hob"
 path = "src/main.rs"
 
+[dev-dependencies]
+stats_alloc = "0.1.10"
+
 [profile.release]
 # The binary is the distribution artifact, so it is built small and stripped;
 # the size gate in `just budget` holds this profile to a number.
