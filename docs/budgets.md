@@ -11,7 +11,7 @@ each gate; this page is the index.
 | Release binary size | `scripts/check_binary_size.sh` | 512 KiB | 305 KiB | absolute |
 | Peak heap, `hob --version` | `scripts/check_heap.sh` | 16 KiB | 1736 B | absolute |
 | Startup allocations | `tests/allocations.rs` | 4 KiB, 32 allocations | 502 B, 3 allocations | absolute |
-| Normal dependencies | `scripts/check_deps.sh` | 150 crates, denylist | 1 crate | absolute |
+| Normal dependencies | `scripts/check_deps.sh` | 150 crates, denylist | 89 crates | absolute |
 | Startup instructions | `benches/startup.rs` | against a saved baseline | 1523 / 1743 / 3243 | relative |
 
 All measurements are from the pinned toolchain in `rust-toolchain.toml`.
@@ -19,6 +19,10 @@ Massif and the counting allocator are deterministic; do not replace them with
 wall-clock or RSS comparisons, which are not. The benchmarks additionally need
 `iai-callgrind-runner`, which `just env` installs at the version locked in
 `Cargo.lock`.
+
+Size and heap only move when a feature becomes reachable from the binary: code
+that nothing calls is stripped by LTO. The dependency count moves as soon as
+the crates are linked in, reachable or not.
 
 ## The ratchet rule
 

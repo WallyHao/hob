@@ -6,4 +6,6 @@
 
 mod cli;
 
+pub mod provider;
+
 pub use cli::{NAME, USAGE_EXIT, VERSION, run};
