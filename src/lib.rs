@@ -5,6 +5,10 @@
 // measure the real dispatch code instead of a copy of it.
 
 mod cli;
+mod driver;
+mod effect;
+mod exec;
+mod lua;
 
 pub mod provider;
 
