@@ -7,13 +7,12 @@
 pub(crate) mod gate;
 mod interrupt;
 mod step;
-
-use std::path::PathBuf;
+mod timeout;
 
 use mlua::thread::ThreadStatus;
 use mlua::{Lua, MultiValue, Table};
 
-use crate::cli::trace::Trace;
+use crate::cli::trace::{Settings, Trace};
 use crate::effect::Failure;
 use crate::exec;
 use crate::lua::{self, library, preload, pure};
@@ -27,7 +26,7 @@ pub(crate) fn run(
     source: &str,
     args: &[String],
     control: Control,
-    trace: Option<PathBuf>,
+    trace: Option<Settings>,
 ) -> Result<(), Failure> {
     let paths = Paths::resolve();
     let lua = lua::new_vm().map_err(Failure::from)?;
@@ -35,11 +34,22 @@ pub(crate) fn run(
     library::install(&lua, &paths).map_err(Failure::from)?;
     pure::install(&lua, &hob).map_err(Failure::from)?;
     publish(&lua, &hob, name, args).map_err(Failure::from)?;
-    let children = exec::proc::Children::new();
-    interrupt::install(children.clone());
-    let mut state = exec::State::new(paths, control.verbosity, control.yes, children);
+    let children = exec::proc::Children::global();
+    interrupt::install();
+    let mut state = exec::State::new(
+        paths,
+        control.verbosity,
+        control.yes,
+        children,
+        control.limits,
+        control.color,
+    );
     let mut gate = gate::Gate::new(control);
-    let mut trace = trace.map(|path| Trace::create(&path)).transpose()?;
+    let mut trace = trace
+        .map(|settings| Trace::create(&settings.path, settings.full))
+        .transpose()?;
+    // Lives until the run ends, and cancels the timer when it is dropped.
+    let _watchdog = control.timeout.map(timeout::Watchdog::start);
 
     let body = lua
         .load(source)

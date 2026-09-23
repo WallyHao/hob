@@ -6,7 +6,7 @@
 // behind. The registry exists so the interrupt handler, which runs on another
 // thread, can kill what is running when the user presses Ctrl-C.
 
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, OnceLock};
 
 /// The live process groups of one run.
 #[derive(Clone, Debug, Default)]
@@ -18,6 +18,16 @@ impl Children {
     /// An empty registry.
     pub(crate) fn new() -> Self {
         Self::default()
+    }
+
+    /// The registry the whole process shares.
+    ///
+    /// The signal handler and the timeout watchdog run on their own threads and
+    /// must find every live group; a library caller that runs flows in sequence
+    /// would otherwise leak one handler per run.
+    pub(crate) fn global() -> Self {
+        static GLOBAL: OnceLock<Children> = OnceLock::new();
+        GLOBAL.get_or_init(Children::new).clone()
     }
 
     /// Register a group leader until the guard is dropped.
