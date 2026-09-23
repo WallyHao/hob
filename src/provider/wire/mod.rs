@@ -8,6 +8,7 @@
 
 mod anthropic;
 mod openai;
+pub(crate) mod stream;
 
 use serde::Deserialize;
 
@@ -16,6 +17,7 @@ use super::spec::{Protocol, ProviderSpec};
 use super::types::{ChatRequest, ChatResponse};
 
 pub(crate) use anthropic::VERSION as ANTHROPIC_VERSION;
+pub(crate) use stream::decoder;
 
 /// The path a chat request goes to.
 pub(crate) fn chat_path(protocol: Protocol) -> &'static str {

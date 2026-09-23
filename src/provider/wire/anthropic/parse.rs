@@ -37,7 +37,10 @@ pub(crate) fn response(provider: &str, body: &str) -> Result<ChatResponse, Error
     let mut message = Message::assistant(&text);
     message.tool_calls = (!calls.is_empty()).then_some(calls);
     Ok(ChatResponse {
-        choices: vec![Choice { message }],
+        choices: vec![Choice {
+            message,
+            finish_reason: reply.stop_reason,
+        }],
         usage,
     })
 }
@@ -48,6 +51,8 @@ struct Reply {
     content: Vec<Block>,
     #[serde(default)]
     usage: Option<RawUsage>,
+    #[serde(default)]
+    stop_reason: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]

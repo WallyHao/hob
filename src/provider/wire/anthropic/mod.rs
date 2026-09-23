@@ -9,9 +9,11 @@
 
 mod build;
 mod parse;
+mod stream;
 
 pub(crate) use build::request;
 pub(crate) use parse::response;
+pub(crate) use stream::Stream;
 
 /// The API version this module speaks.
 pub(crate) const VERSION: &str = "2023-06-01";

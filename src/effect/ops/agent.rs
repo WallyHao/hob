@@ -55,6 +55,12 @@ pub(crate) struct Settings {
     /// How many provider calls one answer may take.
     #[serde(default)]
     pub(crate) max_attempts: Option<u32>,
+    /// Estimated prompt budget for a conversation, 0 for no cap.
+    #[serde(default)]
+    pub(crate) max_prompt_tokens: Option<u32>,
+    /// Show the answer on stderr while it is still arriving.
+    #[serde(default)]
+    pub(crate) stream: Option<bool>,
     /// Reasoning effort, forwarded as `reasoning_effort`.
     #[serde(default)]
     pub(crate) effort: Option<String>,
@@ -71,6 +77,8 @@ impl Settings {
             temperature: self.temperature.or(defaults.temperature),
             max_tokens: self.max_tokens.or(defaults.max_tokens),
             max_attempts: self.max_attempts.or(defaults.max_attempts),
+            max_prompt_tokens: self.max_prompt_tokens.or(defaults.max_prompt_tokens),
+            stream: self.stream.or(defaults.stream),
             effort: self.effort.clone().or_else(|| defaults.effort.clone()),
             tools: self.tools.clone().or_else(|| defaults.tools.clone()),
         }

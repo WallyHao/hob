@@ -25,6 +25,8 @@ local ALLOWED = {
   temperature = true,
   max_tokens = true,
   max_attempts = true,
+  max_prompt_tokens = true,
+  stream = true,
   effort = true,
   tools = true,
 }
@@ -41,8 +43,9 @@ end
 --
 -- Pass `prompt` or `messages`, `system` to frame them, and `schema` to require
 -- JSON of a shape: the engine then validates the answer and, up to
--- `max_attempts`, asks again. `meta` is
--- `{ provider, model, attempts, usage, tool_calls?, reasoning? }`.
+-- `max_attempts`, asks again. `meta` is `{ provider, model, attempts, usage,
+-- finish_reason?, truncated?, tool_calls?, reasoning?, trimmed? }`; `usage` sums
+-- every attempt, and `truncated` says the answer hit the output cap.
 function agent.ask(opts)
   opts = opts or {}
   check(opts)
@@ -53,7 +56,10 @@ end
 --- Open a conversation and return a handle.
 --
 -- The options are the ones `ask` takes, minus `prompt` and `messages`; they
--- become the defaults for every `send`.
+-- become the defaults for every `send`. `max_prompt_tokens` caps what a send
+-- carries: the oldest exchanges are dropped to fit, never the newest. With
+-- `stream = true` the text arrives on stderr as it is generated; the answer and
+-- `meta` are still returned whole.
 function agent.open(opts)
   opts = opts or {}
   check(opts)

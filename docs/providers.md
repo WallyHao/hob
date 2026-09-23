@@ -97,9 +97,24 @@ where a developer already keeps secrets.
 If a config-file fallback is ever added, it belongs in `secret::resolve` as a
 second lookup source, so the policy stays in one place.
 
+## Streaming
+
+`stream = true` sends `stream: true` and reads the answer as server-sent
+events; the text is shown as it arrives (stderr) and the assembled
+`ChatResponse` is what the flow receives. The two dialects differ only in their
+events: chat completions send `choices[0].delta` and a final `[DONE]`, Messages
+sends `content_block_delta` and `message_delta`.
+
+An OpenAI-compatible request also asks for token usage in the last event
+(`stream_options.include_usage`), since servers only send it when asked; a
+server that ignores the option streams fine but reports no tokens, so
+`--max-tokens` cannot see that call's cost. Streaming with `tools` is refused
+until streamed tool calls can be assembled, and a retry after a transport
+failure re-streams the answer from the start, so a partial line may be shown
+twice.
+
 ## Deliberately deferred
 
-- Streaming (SSE) responses; the request shape already carries `stream`.
 - Retry and per-request timeout policy inside the client; `agent.max_attempts`
   retries a failed call at the flow level.
 - `hob models` as a command; `Client::models` is the underlying call, exposed

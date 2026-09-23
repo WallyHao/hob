@@ -25,6 +25,9 @@ pub(crate) fn request(provider: &str, request: &ChatRequest) -> Result<Value, Er
         "max_tokens": request.max_tokens.unwrap_or(MAX_TOKENS),
         "messages": messages,
     });
+    if request.stream {
+        body["stream"] = json!(true);
+    }
     if let Some(system) = system {
         body["system"] = json!(system);
     }

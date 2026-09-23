@@ -2,6 +2,10 @@
 // The chat-completions dialect: the request is the engine's own shape and the
 // answer is `choices[].message`, so there is nothing to translate.
 
+mod stream;
+
+pub(crate) use stream::Stream;
+
 use crate::provider::error::Error;
 use crate::provider::types::{ChatRequest, ChatResponse};
 

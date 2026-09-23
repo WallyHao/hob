@@ -69,7 +69,7 @@ published by the engine before the body runs.
 
 | Function | Length | What it does |
 | --- | --- | --- |
-| `agent.ask{...}` | 3 | one round trip; `prompt` or `messages`, `system`, `schema`, `provider`, `model`, `temperature`, `max_tokens`, `max_attempts`, `effort`, `tools`; returns `answer, meta` |
+| `agent.ask{...}` | 3 | one round trip; `prompt` or `messages`, `system`, `schema`, `provider`, `model`, `temperature`, `max_tokens`, `max_attempts`, `max_prompt_tokens`, `stream`, `effort`, `tools`; returns `answer, meta` |
 | `agent.open{...}` | 4 | open a conversation; returns the chat handle |
 | `agent.list{...}` | 4 | model ids a provider lists |
 
@@ -90,7 +90,25 @@ has no equivalent.
 | `:reset()` | 5 | forget the turns, keep the system prompt |
 | `:close()` | 5 | release the handle |
 
-`meta` is `{provider, model, attempts, usage, tool_calls, reasoning?}`. Tools
+`stream = true` makes the answer arrive as events: the text is shown on stderr
+while it is generated, and the assembled answer and `meta` are still returned
+whole, so a flow does not branch on how the answer travelled. Streaming cannot
+be combined with `tools` yet: a streamed tool call cannot be assembled, and the
+call is refused rather than silently dropping it.
+
+`max_prompt_tokens` caps what a conversation sends: before a `:send`, the oldest
+exchanges are dropped until the rest is estimated under the cap, and the newest
+exchange is never dropped. `0` turns the cap off; the default is 32000. A send
+reports how many messages went in `meta.trimmed`, and the model is told with a
+marker where the history starts. `agent.ask` accepts the setting but has no
+history to trim.
+
+`meta` is `{provider, model, attempts, usage, finish_reason?, truncated?,
+tool_calls?, reasoning?, trimmed?}`. `finish_reason` is the provider's own word
+for why the model stopped, and `truncated` is true when that reason means the
+output cap was reached, so a flow can tell a finished answer from a cut one
+without knowing each dialect. `usage` sums every attempt, repaired answers
+included. Tools
 are data: the response carries `tool_calls` and the flow decides what to run;
 there is no automatic loop. Each entry is `{id, name, arguments}`, with
 `arguments` the raw JSON string the model produced.
@@ -190,6 +208,7 @@ read a file except through `hob.file` is what makes `--dry-run` meaningful.
 
 ## Deferred
 
-`file.glob`, `file.remove`, `term.edit`, `proc` and `agent` streaming (and so
-`on_delta`), `thinking` and `show_reasoning`, the mock provider, time helpers,
-raw HTTP, caching, retrieval.
+`file.glob`, `file.remove`, `term.edit`, `proc` streaming, `agent` streaming to
+a callback (`on_delta`; today the text goes to stderr), streaming with `tools`,
+`thinking` and `show_reasoning`, the mock provider, time helpers, raw HTTP,
+caching, retrieval.

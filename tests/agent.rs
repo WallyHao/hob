@@ -40,7 +40,8 @@ impl Respond for Repair {
             "{\"name\":\"wally\"}"
         };
         ResponseTemplate::new(200).set_body_json(json!({
-            "choices": [{ "message": { "role": "assistant", "content": content } }]
+            "choices": [{ "message": { "role": "assistant", "content": content }, "finish_reason": "stop" }],
+            "usage": { "prompt_tokens": 3, "completion_tokens": 2, "total_tokens": 5 }
         }))
     }
 }
@@ -62,12 +63,12 @@ async fn a_schema_is_validated_and_repaired() {
           schema = { type = "object", required = { "name" }, properties = { name = { type = "string" } } },
         }
         hob.term.print(answer.name)
-        hob.term.print(tostring(meta.attempts))
+        hob.term.print(tostring(meta.attempts) .. " " .. tostring(meta.usage.total_tokens))
         "#,
     );
     let output = mock::run(flow).await;
     assert!(output.status.success(), "{output:?}");
-    assert_eq!(stdout(&output), "wally\n2\n");
+    assert_eq!(stdout(&output), "wally\n2 10\n");
 }
 
 #[tokio::test]

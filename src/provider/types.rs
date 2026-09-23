@@ -106,8 +106,12 @@ pub struct ChatRequest {
     pub model: String,
     /// Conversation, first message first.
     pub messages: Vec<Message>,
-    /// Always sent, so the wire shape does not change when streaming lands.
+    /// Whether the answer arrives as events.
     pub stream: bool,
+    /// Ask the provider to report token usage in the last event; `OpenAI`-
+    /// compatible servers only send it when asked.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub stream_options: Option<Value>,
     /// Optional cap on generated tokens.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub max_tokens: Option<u32>,
@@ -129,6 +133,7 @@ impl ChatRequest {
             model: model.to_owned(),
             messages,
             stream: false,
+            stream_options: None,
             max_tokens: None,
             temperature: None,
             reasoning_effort: None,
@@ -154,10 +159,23 @@ impl ChatResponse {
             .first()
             .map(|choice| choice.message.content.as_str())
     }
+
+    /// Whether the answer stopped because it hit the output cap. Dialects spell
+    /// it differently (`length` against `max_tokens`), which callers should not
+    /// have to know.
+    pub fn truncated(&self) -> bool {
+        self.choices
+            .first()
+            .and_then(|choice| choice.finish_reason.as_deref())
+            .is_some_and(|reason| matches!(reason, "length" | "max_tokens"))
+    }
 }
 /// One completion.
 #[derive(Debug, Clone, Deserialize)]
 pub struct Choice {
     /// The assistant message.
     pub message: Message,
+    /// Why the model stopped, in the provider's own words.
+    #[serde(default)]
+    pub finish_reason: Option<String>,
 }
