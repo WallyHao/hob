@@ -8,7 +8,7 @@ each gate; this page is the index.
 
 | Gate | Where | Budget | Measured | Kind |
 | --- | --- | --- | --- | --- |
-| Release binary size | `scripts/check_binary_size.sh` | 8 MiB | 5929 KiB | absolute |
+| Release binary size | `scripts/check_binary_size.sh` | 8 MiB | 5957 KiB | absolute |
 | Peak heap, `hob --version` | `scripts/check_heap.sh` | 16 KiB | 1736 B | absolute |
 | Peak heap, `hob run` (one-line flow) | `scripts/check_heap.sh` | 128 KiB | 69 KiB | absolute |
 | Startup allocations | `tests/allocations.rs` | 4 KiB, 32 allocations | 983 B, 2 allocations | absolute |
@@ -44,7 +44,8 @@ Budgets move deliberately or not at all:
 Derive each number from a real measurement with roughly 2x headroom, then
 tighten as the area stabilizes. A budget that is never approached is either a
 guardrail doing its job or a dead number; re-read it when the layer it covers
-grows. `HOB_BINARY_BUDGET_KIB`, `HOB_HEAP_BUDGET_KIB` and `HOB_DEPS_BUDGET`
+grows. `HOB_BINARY_BUDGET_KIB`, `HOB_CLI_HEAP_BUDGET_KIB`,
+`HOB_FLOW_HEAP_BUDGET_KIB` and `HOB_DEPS_BUDGET`
 override the scripts for local experiments, never for CI.
 
 ## Not covered yet
