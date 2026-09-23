@@ -18,6 +18,30 @@ that has a flag of its own can still receive it.
 `--dry-run` and `--step` cannot be combined; `-q` and `-v` cannot be combined.
 An unknown flag before the command name is a usage error (exit 2).
 
+`--json` shapes the verbs that describe the installation: `list`, `which`,
+`doctor` and `trust --list` print one object instead of text. The success output
+of the other verbs ignores the flag. Once the command name is parsed, a failure
+is one `{"error": "..."}` object on stderr instead of an `error:` line, so a
+script reads JSON from stdout or stderr and nothing else; a usage error raised
+before the command name (the flags themselves did not parse) stays text.
+
+`--color auto` -- the default -- spells a style only when the line's own stream
+is a terminal, and honours `NO_COLOR` (set to anything: no colour) and
+`CLICOLOR_FORCE` (set, and not `0`: colour even into a pipe). The flag wins over
+both: `--color always` colours a pipe, `--color never` stays plain. A flow names
+a style, never an escape code, so a command that pipes its output somewhere else
+is not the one that has to think about it.
+
+## Budgets
+
+`--max-calls N` and `--max-tokens N` cap what a run spends on model calls, so a
+flow that loops cannot quietly turn into a bill. One call is one HTTP request to
+a provider, retries and model listings included. Tokens are the `total_tokens`
+sum of every answer: a call can overshoot the token cap, since only its answer
+says what it cost, but the next one is refused. Both default to no cap; `0`
+means the same. A refusal is an ordinary failure (exit 1) that names the cap and
+the flag that raises it.
+
 ## What a preview performs
 
 Every effect is classified by the engine, not by the flow: a flow cannot mark its

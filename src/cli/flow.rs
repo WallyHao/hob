@@ -4,10 +4,12 @@
 
 use std::fs;
 use std::io::Write;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
+use super::report::{self, Format};
+use super::trace::Settings;
 use crate::driver::{self, Control};
-use crate::effect::Failure;
+use crate::store::trust::denial;
 use crate::store::{Command, Source};
 
 use super::USAGE_EXIT;
@@ -16,24 +18,29 @@ use super::USAGE_EXIT;
 pub(crate) fn file(
     rest: &[String],
     control: Control,
-    trace: Option<PathBuf>,
+    trace: Option<Settings>,
+    format: Format,
     err: &mut dyn Write,
 ) -> u8 {
     let Some(path) = rest.first() else {
-        return fail(
+        return report::error(
             err,
             &format!("`run` needs a flow file\n\n{}", super::help::text()),
+            USAGE_EXIT,
+            format,
         );
     };
     let source = match fs::read_to_string(path) {
         Ok(source) => source,
-        Err(error) => return report(err, &format!("cannot read `{path}`: {error}"), 1),
+        Err(error) => {
+            return report::error(err, &format!("cannot read `{path}`: {error}"), 1, format);
+        }
     };
     let name = Path::new(path)
         .file_stem()
         .and_then(|stem| stem.to_str())
         .unwrap_or("flow");
-    execute(&source, name, &rest[1..], control, trace, err)
+    execute(&source, name, &rest[1..], control, trace, format, err)
 }
 
 /// Run a command the registry resolved.
@@ -41,7 +48,8 @@ pub(crate) fn command(
     command: &Command,
     args: &[String],
     control: Control,
-    trace: Option<PathBuf>,
+    trace: Option<Settings>,
+    format: super::report::Format,
     out: &mut dyn Write,
     err: &mut dyn Write,
 ) -> u8 {
@@ -53,22 +61,27 @@ pub(crate) fn command(
     if let Some(spec) = command.meta.args
         && let Err(message) = spec.check(args.len(), &usage(command))
     {
-        return report(err, &message, USAGE_EXIT);
+        return report::error(err, &message, USAGE_EXIT, format);
+    }
+    // A project command is code; running it needs the checkout to be trusted.
+    if let Some(failure) = denial(command) {
+        return report::error(err, &failure.message, failure.code, format);
     }
     let Source::File(path) = &command.source else {
-        return finish(crate::builtin::run(&command.name, out), err);
+        return report::finish(crate::builtin::run(&command.name, out, format), err, format);
     };
     let source = match fs::read_to_string(path) {
         Ok(source) => source,
         Err(error) => {
-            return report(
+            return report::error(
                 err,
                 &format!("cannot read `{}`: {error}", path.display()),
                 1,
+                format,
             );
         }
     };
-    execute(&source, &command.name, args, control, trace, err)
+    execute(&source, &command.name, args, control, trace, format, err)
 }
 
 /// Print what a command says about itself, without running it.
@@ -102,38 +115,13 @@ fn execute(
     name: &str,
     args: &[String],
     control: Control,
-    trace: Option<PathBuf>,
+    trace: Option<Settings>,
+    format: Format,
     err: &mut dyn Write,
 ) -> u8 {
     match driver::run(name, source, args, control, trace) {
         Ok(()) => 0,
         Err(failure) if failure.message.is_empty() => failure.code,
-        Err(failure) => report(err, &failure.message, failure.code),
+        Err(failure) => report::error(err, &failure.message, failure.code, format),
     }
-}
-
-/// Print a store error and return its exit code.
-pub(crate) fn finish(result: Result<(), Failure>, err: &mut dyn Write) -> u8 {
-    match result {
-        Ok(()) => 0,
-        Err(failure) => report(err, &failure.message, failure.code),
-    }
-}
-
-/// Print to `err` and return `USAGE_EXIT`.
-pub(crate) fn fail(err: &mut dyn Write, message: &str) -> u8 {
-    report(err, message, USAGE_EXIT)
-}
-
-/// Print `error: ...` and return the code.
-pub(crate) fn report(err: &mut dyn Write, message: &str, code: u8) -> u8 {
-    if !message.is_empty() {
-        let _ = writeln!(err, "error: {message}");
-    }
-    code
-}
-
-/// Print to `out`, or 1 when the stream is gone.
-pub(crate) fn write(out: &mut dyn Write, text: &str) -> u8 {
-    u8::from(out.write_all(text.as_bytes()).is_err())
 }

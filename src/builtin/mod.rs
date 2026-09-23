@@ -7,9 +7,11 @@
 // -- and is where a future `models` or `config` verb would land.
 
 mod doctor;
+mod report;
 
 use std::io::Write;
 
+use crate::cli::report::Format;
 use crate::effect::Failure;
 use crate::store::Command;
 
@@ -19,9 +21,9 @@ pub(crate) fn commands() -> Vec<Command> {
 }
 
 /// Run a builtin by name.
-pub(crate) fn run(name: &str, out: &mut dyn Write) -> Result<(), Failure> {
+pub(crate) fn run(name: &str, out: &mut dyn Write, format: Format) -> Result<(), Failure> {
     match name {
-        "doctor" => doctor::run(out),
+        "doctor" => doctor::run(out, format),
         other => Err(Failure::new(format!("unknown builtin `{other}`"))),
     }
 }
