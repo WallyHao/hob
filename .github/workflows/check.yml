@@ -1,0 +1,24 @@
+# --- check ---
+# The gate a developer runs locally: `just check`, nothing copied into YAML.
+#
+# The toolchain comes from `rust-toolchain.toml`, so rustup installs the pinned
+# version with its components; valgrind backs the heap budget, and `just` is the
+# only other tool the recipes shell out to.
+name: check
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: taiki-e/install-action@just
+      - uses: Swatinem/rust-cache@v2
+      - name: Install valgrind
+        run: sudo apt-get update && sudo apt-get install -y valgrind
+      - name: Check
+        run: just check

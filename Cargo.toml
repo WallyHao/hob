@@ -8,6 +8,7 @@ edition = "2024"
 rust-version = "1.98"
 description = "A lightweight, scriptable CLI for AI chores"
 license = "MIT"
+readme = "README.md"
 keywords = ["cli", "lua", "ai", "automation"]
 categories = ["command-line-utilities"]
 

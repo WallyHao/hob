@@ -1,0 +1,35 @@
+# --- release ---
+# A tag builds the binary, runs the same gate, and attaches the artifact.
+#
+# `workflow_dispatch` lets the workflow be rehearsed from the Actions tab
+# without pushing a tag; the release step only runs for a tag.
+name: release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: taiki-e/install-action@just
+      - uses: Swatinem/rust-cache@v2
+      - name: Install valgrind
+        run: sudo apt-get update && sudo apt-get install -y valgrind
+      - name: Check
+        run: just check
+      - name: Build
+        run: cargo build --release --locked
+      - name: Package
+        run: tar -C target/release -czf hob-x86_64-unknown-linux-gnu.tar.gz hob
+      - name: Attach to the release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: hob-x86_64-unknown-linux-gnu.tar.gz
