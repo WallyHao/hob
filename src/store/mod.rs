@@ -9,6 +9,7 @@
 mod change;
 mod create;
 mod grant;
+pub(crate) mod libraries;
 mod meta;
 mod query;
 mod scan;

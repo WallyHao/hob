@@ -28,10 +28,11 @@ store lives in the user's configuration, never in the project, so a repository
 cannot bless itself; roots are canonicalized, so a command reached through a
 relative path or a symlink compares equal to the one that was trusted.
 
-Only the project layer is gated. `hob run <file.lua>` is an explicit decision,
-and the user layer and builtins are the user's own configuration. `hob list`
-marks a project command `(untrusted)`, `hob doctor` reports the current
-project's state, and `hob <name> --help` stays available because it reads the
+Project command entry points and project libraries are gated. `hob run <file.lua>`
+is an explicit decision to execute that file, not to trust the surrounding
+project's libraries. The user layer and builtins are the user's own
+configuration. `hob list` marks a project command `(untrusted)`, `hob doctor`
+reports the current project's state, and `hob <name> --help` stays available because it reads the
 header instead of running anything. A refused command exits 1 and names the
 project and the command that fixes it; it does not fall back to a shadowed user
 command, because running a different file under the name would be worse than
@@ -92,10 +93,24 @@ usage line, and an unparseable `args:` line is ignored rather than guessed at.
 ## Shared libraries
 
 A command may `require` a shared module: `require("util.text")` resolves to
-`<project>/.hob/lib/util/text.lua`, then to the user's `lib/`, so a project
-library wins the way a project command does. Module names are lowercase words
-joined by dots; a slash or `..` is not a module name, so a library cannot climb
-out of its directory. The embedded `hob.*` modules are loaded first, so a
+`<project>/.hob/lib/util/text.lua` when the project is trusted, then to the user's
+`lib/`. An untrusted project's library directory is excluded even for user
+commands and explicit `hob run` flows; a matching user library remains available.
+Existing search roots are authorized and canonicalized once before the flow
+starts; directories created later are not added to the search. In a project, an
+unreadable or malformed user trust store fails the run before executing Lua.
+Trust changes take effect on the next run.
+
+Module names are lowercase words joined by dots; a slash or `..` is not a module
+name. A library root may be a symlink only when its target remains within its
+owning project or user configuration directory. A module's resolved path must
+remain inside that library root, including through directory symlinks. An
+existing link that resolves outside this boundary, or a dangling module-file
+link, fails explicitly instead of falling back to a lower-priority library.
+Links within the boundary are supported. These checks do not protect against
+concurrent filesystem replacement by another process.
+
+The embedded `hob.*` modules are loaded first, so a
 library adds modules rather than replacing the stdlib.
 
 ## Builtins
