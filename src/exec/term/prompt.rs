@@ -38,7 +38,7 @@ pub(crate) fn allow(request: &Allow, yes: bool) -> Result<Value, Failure> {
         return Ok(Value::Bool(default));
     }
     if let Some(detail) = &request.detail {
-        eprintln!("{detail}");
+        let _ = writeln!(io::stderr(), "{detail}");
     }
     let hint = if default { "[Y/n]" } else { "[y/N]" };
     let question = request.prompt.as_deref().unwrap_or("continue?");
@@ -48,7 +48,9 @@ pub(crate) fn allow(request: &Allow, yes: bool) -> Result<Value, Failure> {
             "" => return Ok(Value::Bool(default)),
             "y" | "yes" => return Ok(Value::Bool(true)),
             "n" | "no" => return Ok(Value::Bool(false)),
-            _ => eprintln!("please answer yes or no"),
+            _ => {
+                let _ = writeln!(io::stderr(), "please answer yes or no");
+            }
         }
     }
 }

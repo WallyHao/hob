@@ -3,6 +3,8 @@
 // line takes the default, so both a person and a script can answer the same
 // question.
 
+use std::io::{self, Write as _};
+
 use serde_json::Value;
 
 use crate::effect::Failure;
@@ -25,7 +27,7 @@ pub(crate) fn select(request: &Select, yes: bool) -> Result<Value, Failure> {
         let line = ask("> ")?;
         if line.is_empty() {
             let Some(default) = &request.default else {
-                eprintln!("please pick one");
+                let _ = writeln!(io::stderr(), "please pick one");
                 continue;
             };
             return match labels.iter().position(|label| label == default) {
@@ -37,7 +39,9 @@ pub(crate) fn select(request: &Select, yes: bool) -> Result<Value, Failure> {
         }
         match pick(&line, &labels) {
             Some(index) => return Ok(request.options[index].value()),
-            None => eprintln!("please pick a number or a label"),
+            None => {
+                let _ = writeln!(io::stderr(), "please pick a number or a label");
+            }
         }
     }
 }
@@ -72,11 +76,11 @@ pub(crate) fn choose(request: &Choose, yes: bool) -> Result<Value, Failure> {
             }
         }
         if let Some(answer) = unknown {
-            eprintln!("`{answer}` is not one of the options");
+            let _ = writeln!(io::stderr(), "`{answer}` is not one of the options");
             continue;
         }
         if picked.len() < min || picked.len() > max {
-            eprintln!("pick between {min} and {max}");
+            let _ = writeln!(io::stderr(), "pick between {min} and {max}");
             continue;
         }
         return Ok(Value::Array(
@@ -89,9 +93,10 @@ pub(crate) fn choose(request: &Choose, yes: bool) -> Result<Value, Failure> {
 }
 
 fn print_options(prompt: &str, labels: &[&str]) {
-    eprintln!("{prompt}");
+    let mut err = io::stderr().lock();
+    let _ = writeln!(err, "{prompt}");
     for (index, label) in labels.iter().enumerate() {
-        eprintln!("  {}) {label}", index + 1);
+        let _ = writeln!(err, "  {}) {label}", index + 1);
     }
 }
 

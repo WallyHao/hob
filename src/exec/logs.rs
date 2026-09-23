@@ -3,6 +3,8 @@
 // shown when it is at or below the run's verbosity: warnings and errors always,
 // `info` by default, `debug` under `-vv`, `trace` under `-vvv`.
 
+use std::io::Write as _;
+
 use serde_json::Value;
 
 use crate::effect::Failure;
@@ -15,7 +17,8 @@ use crate::exec::State;
 #[allow(clippy::unnecessary_wraps)]
 pub(crate) fn write(state: &State, entry: &Write) -> Result<Value, Failure> {
     if entry.level.rank() <= state.verbosity {
-        eprintln!("{}: {}", entry.level.label(), entry.msg);
+        // A diagnostic is not worth panicking over a closed stderr.
+        let _ = writeln!(std::io::stderr(), "{}: {}", entry.level.label(), entry.msg);
     }
     Ok(Value::Null)
 }
