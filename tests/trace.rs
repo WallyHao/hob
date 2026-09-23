@@ -79,6 +79,36 @@ fn an_unwritable_trace_fails_the_run() {
 }
 
 #[test]
+fn content_is_recorded_as_a_size_by_default() {
+    let flow = Flow::new(
+        "trace-content",
+        r#"hob.file.write("out.txt", "secret body")"#,
+    );
+    let output = flow.run(&["--trace", "trace.jsonl"]);
+    assert!(output.status.success(), "{output:?}");
+    let text = std::fs::read_to_string(flow.dir().join("trace.jsonl")).expect("trace file");
+    assert!(!text.contains("secret body"), "{text}");
+    assert!(text.contains("<11 bytes>"), "{text}");
+}
+
+#[test]
+fn trace_full_records_the_content() {
+    let flow = Flow::new("trace-full", r#"hob.file.write("out.txt", "secret body")"#);
+    let output = flow.run(&["--trace", "trace.jsonl", "--trace-full"]);
+    assert!(output.status.success(), "{output:?}");
+    let text = std::fs::read_to_string(flow.dir().join("trace.jsonl")).expect("trace file");
+    assert!(text.contains("secret body"), "{text}");
+}
+
+#[test]
+fn trace_full_needs_a_trace() {
+    let flow = Flow::new("trace-full-alone", r#"hob.term.print("x")"#);
+    let output = flow.run(&["--trace-full"]);
+    assert_eq!(output.status.code(), Some(2));
+    assert!(stderr(&output).contains("--trace"), "{output:?}");
+}
+
+#[test]
 fn trace_needs_a_file() {
     let flow = Flow::new("trace-arg", r#"hob.term.print("x")"#);
     let output = flow.run(&["--trace"]);

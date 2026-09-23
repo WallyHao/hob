@@ -97,15 +97,20 @@ visible without wall-clock timestamps.
 
 The file is created fresh per run: appending would mix runs without a boundary
 between them. Arguments are recorded, with the same secret masking a preview
-applies, so a key cannot end up at rest in the trace. A write failure mid-run
-prints a warning and abandons the trace rather than failing the flow; a trace
-file that cannot be created at all fails the run before it starts.
+applies, so a key cannot end up at rest in the trace. The fields that carry
+user content — a `file.write` body, and a model call's prompt, system prompt
+and messages — are recorded as their size, so a trace can be kept or shared
+without the data in it; `--trace-full` records them as they are. A write
+failure mid-run prints a warning and abandons the trace rather than failing the
+flow; a trace file that cannot be created at all fails the run before it starts.
 
 ## Interrupt
 
 Ctrl-C ends the run immediately. The handler lives on its own thread, so it works
 while the main thread is blocked in a read, a wait or a request; it first kills
-every live process group with `SIGKILL`, then exits 130. Commands run in their
+every live process group with `SIGKILL`, then exits 130. `SIGTERM` takes the
+same path and exits 143, and `--timeout SECS` is the same kill on a timer,
+exiting 124 the way `timeout(1)` does. Commands run in their
 own process group, so a command that started a tree (`sh -c 'long & wait'`) is
 killed whole and cannot leave orphans behind, and the same group kill backs
 `timeout_ms`. A trace is already flushed line by line, so an interrupt does not

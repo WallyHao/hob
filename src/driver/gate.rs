@@ -8,11 +8,14 @@
 // line, so a preview cannot leak a key the way a dump of the request would.
 
 use std::io::{self, Write as _};
+use std::time::Duration;
 
 use serde_json::Value;
 
 use crate::effect::{Failure, Request};
+use crate::exec::budget::Limits;
 use crate::exec::redact::Redactor;
+use crate::exec::term::Color;
 use crate::exec::{State, describe, safety::Safety, skipped};
 
 /// How much of the work to perform.
@@ -35,6 +38,12 @@ pub(crate) struct Control {
     pub(crate) verbosity: u8,
     /// Answer questions with their default instead of reading stdin.
     pub(crate) yes: bool,
+    /// Stop the run after this long, when set.
+    pub(crate) timeout: Option<Duration>,
+    /// What the run may spend on model calls.
+    pub(crate) limits: Limits,
+    /// How `term.print` treats styling.
+    pub(crate) color: Color,
 }
 
 /// What to do with one effect.
@@ -89,7 +98,7 @@ impl Gate {
 
     /// Print the effect and stand in for its result.
     fn refuse(&self, state: &State, request: &Request, reason: &'static str) -> Decision {
-        eprintln!("{reason}: {}", self.line(request));
+        let _ = writeln!(io::stderr(), "{reason}: {}", self.line(request));
         Decision::Skip {
             reason,
             value: skipped::result(state, request),
@@ -115,11 +124,16 @@ impl Gate {
     }
 
     /// One line describing the effect, with secrets masked.
+    ///
+    /// The arguments are masked before they are described: describing first
+    /// would clip a long secret to the line's limit, and the exact-match mask
+    /// would no longer find it.
     fn line(&self, request: &Request) -> String {
-        let line = describe::line(request);
-        match &self.redact {
-            Some(redactor) => redactor.text(&line),
-            None => line,
-        }
+        let Some(redactor) = &self.redact else {
+            return describe::line(request);
+        };
+        let mut masked = request.clone();
+        masked.cmd = redactor.value(&request.cmd);
+        redactor.text(&describe::line(&masked))
     }
 }
