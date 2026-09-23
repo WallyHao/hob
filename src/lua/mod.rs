@@ -2,6 +2,7 @@
 // The Lua side of the engine: the VM, its sandbox and the embedded modules.
 
 pub(crate) mod embedded;
+pub(crate) mod json;
 pub(crate) mod library;
 pub(crate) mod preload;
 pub(crate) mod pure;

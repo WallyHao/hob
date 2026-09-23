@@ -176,9 +176,10 @@ are visible by default, `debug` needs `-v` and `trace` needs `-vv`.
 ## `hob.json` (implemented)
 
 `encode` (6) turns a Lua value into a string; `decode` (6) turns a string into
-a Lua value and raises on malformed input (`pcall` to catch). The hand-written
-bridge keeps `nil` and empty tables meaningful instead of exposing mlua's
-serde quirks.
+a Lua value and raises on malformed input (`pcall` to catch). Decoded arrays,
+objects and `null` keep their JSON identity. Use `hob.json.array()` and
+`hob.json.object()` for empty containers, and `hob.json.null` for an explicit
+null; an unmarked empty Lua table encodes as an object.
 
 ## `hob.tmpl` (implemented)
 
@@ -192,9 +193,12 @@ today, and a name that is absolute or climbs out of the directory is refused.
 `io`, `os`, `debug`, `loadfile`, `dofile`, `load`, `print` and `warn` are
 unreachable; `package.searchers` keeps only the preload searcher plus the
 library searcher, so `require` returns an embedded module or a file from
-`.hob/lib` (then the user's `lib/`) and nothing else — a module name is not a
-path (`docs/commands.md`). Lua's heap is capped at 64 MiB, so a flow that runs
-away with memory fails instead of taking the process down. Flows are trusted
+the trusted project's `.hob/lib` (then the user's `lib/`) and nothing else —
+an untrusted project's libraries are excluded, including for user commands and
+explicit `hob run` flows. Existing search roots are fixed before execution;
+symlink targets are checked against their authorized directories. A module name
+is not a path (`docs/commands.md`). Lua's heap is capped at 64 MiB, so a flow
+that runs away with memory fails instead of taking the process down. Flows are trusted
 local code, but a flow that cannot read a file except through `hob.file` is
 what makes `--dry-run` meaningful.
 

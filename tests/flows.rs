@@ -65,6 +65,24 @@ fn json_round_trips() {
 }
 
 #[test]
+fn json_preserves_empty_containers_and_null() {
+    let flow = Flow::new(
+        "json-shapes",
+        r#"
+        local value = hob.json.decode('{"array":[],"null":null,"object":{}}')
+        hob.term.print(hob.json.encode(value))
+        hob.term.print(hob.json.encode({
+          array = hob.json.array(), object = hob.json.object(), null = hob.json.null,
+        }))
+        "#,
+    );
+    let output = flow.run(&[]);
+    assert!(output.status.success(), "{output:?}");
+    let expected = "{\"array\":[],\"null\":null,\"object\":{}}\n";
+    assert_eq!(stdout(&output), expected.repeat(2));
+}
+
+#[test]
 fn tmpl_render_substitutes() {
     let flow = Flow::new(
         "tmpl",
