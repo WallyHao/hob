@@ -3,6 +3,7 @@
 // turns live here, so a flow cannot rewrite history by accident and the
 // engine can keep the accounting straight.
 
+mod budget;
 mod chat;
 mod messages;
 mod provider;
@@ -15,11 +16,12 @@ use serde_json::Value;
 use crate::effect::Failure;
 use crate::effect::ops::agent::{Ask, Handle, List, Open, Push, Send};
 use crate::exec::State;
+use crate::provider::{Client, ProviderSpec};
 
 pub(crate) use chat::Chat;
 
 /// One round trip.
-pub(crate) fn ask(request: &Ask) -> Result<Value, Failure> {
+pub(crate) fn ask(state: &mut State, request: &Ask) -> Result<Value, Failure> {
     let spec = provider::spec(request.provider.as_ref())?;
     let model = provider::model(request.model.as_deref())?;
     let messages = messages::opening(
@@ -27,7 +29,15 @@ pub(crate) fn ask(request: &Ask) -> Result<Value, Failure> {
         request.prompt.as_deref(),
         request.system.as_deref(),
     )?;
-    let reply = turn::round_trip(&spec, &model, &messages, &request.settings)?;
+    let client = client(state, &spec)?;
+    let reply = turn::round_trip(
+        &client,
+        &spec,
+        &model,
+        &messages,
+        &request.settings,
+        &state.budget,
+    )?;
     Ok(wire::result(&reply.answer, &reply.meta))
 }
 
@@ -49,9 +59,10 @@ pub(crate) fn open(state: &mut State, request: &Open) -> Result<Value, Failure> 
 }
 
 /// The models a provider lists.
-pub(crate) fn list(request: &List) -> Result<Value, Failure> {
+pub(crate) fn list(state: &mut State, request: &List) -> Result<Value, Failure> {
     let spec = provider::spec(request.provider.as_ref())?;
-    let models = provider::models(&spec)?;
+    let client = client(state, &spec)?;
+    let models = provider::models(&client, &state.budget)?;
     Ok(Value::Array(
         models.into_iter().map(Value::String).collect(),
     ))
@@ -59,11 +70,16 @@ pub(crate) fn list(request: &List) -> Result<Value, Failure> {
 
 /// One turn in a conversation.
 pub(crate) fn send(state: &mut State, request: &Send) -> Result<Value, Failure> {
+    let spec = chat_ref(state, request.session)?.spec().clone();
+    let client = client(state, &spec)?;
+    let budget = state.budget.clone();
     let chat = chat(state, request.session)?;
     let (answer, meta) = chat.send(
+        &client,
         request.prompt.as_deref(),
         request.messages.as_ref(),
         &request.settings,
+        &budget,
     )?;
     Ok(wire::result(&answer, &meta))
 }
@@ -97,6 +113,14 @@ pub(crate) fn close(state: &mut State, request: &Handle) -> Result<Value, Failur
         .remove(&request.session)
         .ok_or_else(|| unknown(request.session))?;
     Ok(Value::Null)
+}
+
+/// The client for a provider, built once per run and then shared.
+fn client(state: &mut State, spec: &ProviderSpec) -> Result<Client, Failure> {
+    state
+        .clients
+        .get(spec)
+        .map_err(|error| Failure::new(error.to_string()))
 }
 
 fn chat_ref(state: &State, id: u64) -> Result<&Chat, Failure> {

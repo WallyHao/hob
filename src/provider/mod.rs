@@ -10,16 +10,20 @@
 // Keys are read from the environment at request time and never stored on
 // disk; `Secret` keeps them out of debug output and error messages.
 
+mod body;
+mod cache;
 mod client;
 mod config;
 mod error;
 mod registry;
 mod secret;
 mod spec;
+mod stream;
 mod types;
 mod usage;
 mod wire;
 
+pub(crate) use cache::Cache;
 pub use client::Client;
 pub use error::Error;
 pub use registry::{builtins, find};
@@ -37,6 +41,11 @@ pub fn resolve(id: &str) -> Result<ProviderSpec> {
         return Ok(spec);
     }
     config::find(id)?.ok_or_else(|| Error::UnknownProvider(id.to_owned()))
+}
+
+/// What a call uses when the flow names neither provider nor model.
+pub(crate) fn defaults() -> Result<config::Defaults> {
+    Ok(config::read()?.defaults)
 }
 
 /// Every provider hob knows: the registry, then the configuration file.

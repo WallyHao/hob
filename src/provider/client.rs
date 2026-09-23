@@ -6,9 +6,11 @@
 
 use std::time::Duration;
 
+use super::body;
 use super::error::Error;
 use super::secret::{self, Secret};
 use super::spec::{Protocol, ProviderSpec};
+use super::stream;
 use super::types::{ChatRequest, ChatResponse};
 use super::wire;
 
@@ -16,8 +18,11 @@ use super::wire;
 /// day on a dead connection.
 const TIMEOUT: Duration = Duration::from_secs(300);
 
+/// How long a connection may take to come up.
+const CONNECT_TIMEOUT: Duration = Duration::from_secs(10);
+
 /// A client for one provider. Holds the key in memory only.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Client {
     http: reqwest::Client,
     spec: ProviderSpec,
@@ -29,6 +34,7 @@ impl Client {
     pub fn new(spec: ProviderSpec, key: Secret) -> Result<Self, Error> {
         let http = reqwest::Client::builder()
             .timeout(TIMEOUT)
+            .connect_timeout(CONNECT_TIMEOUT)
             .build()
             .map_err(|source| Error::Http {
                 provider: spec.id.clone(),
@@ -50,6 +56,24 @@ impl Client {
 
     /// One chat completion.
     pub async fn chat(&self, request: &ChatRequest) -> Result<ChatResponse, Error> {
+        let response = self.send(request).await?;
+        let body = self.body(response).await?;
+        wire::response(&self.spec, &body)
+    }
+
+    /// One streaming chat completion: deltas reach `sink` as they arrive, and
+    /// the assembled answer comes back like any other.
+    pub async fn chat_stream(
+        &self,
+        request: &ChatRequest,
+        sink: &mut dyn FnMut(&str),
+    ) -> Result<ChatResponse, Error> {
+        let response = self.send(request).await?;
+        stream::read(response, &self.spec, sink).await
+    }
+
+    /// Send a chat request; a refused status becomes the API's own error.
+    async fn send(&self, request: &ChatRequest) -> Result<reqwest::Response, Error> {
         let path = wire::chat_path(self.spec.protocol);
         let body = wire::request(&self.spec, request)?;
         let response = self
@@ -58,8 +82,17 @@ impl Client {
             .send()
             .await
             .map_err(|source| self.transport(source))?;
-        let body = self.body(response).await?;
-        wire::response(&self.spec, &body)
+        if response.status().is_success() {
+            return Ok(response);
+        }
+        // `body` refuses a non-success status and reads the message with it.
+        match self.body(response).await {
+            Err(error) => Err(error),
+            Ok(_) => Err(Error::Shape {
+                provider: self.spec.id.clone(),
+                message: "the provider refused the request with no message".to_owned(),
+            }),
+        }
     }
 
     /// The models the provider lists.
@@ -94,15 +127,7 @@ impl Client {
 
     /// Read the body, or turn a non-success status into an error without the key.
     async fn body(&self, response: reqwest::Response) -> Result<String, Error> {
-        let status = response.status();
-        let body = response
-            .text()
-            .await
-            .map_err(|source| self.transport(source))?;
-        if !status.is_success() {
-            return Err(Error::api(&self.spec.id, status.as_u16(), &body, &self.key));
-        }
-        Ok(body)
+        body::read(&self.spec.id, &self.key, response).await
     }
 
     fn transport(&self, source: reqwest::Error) -> Error {

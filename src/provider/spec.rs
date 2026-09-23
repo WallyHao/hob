@@ -8,7 +8,7 @@ use std::collections::BTreeMap;
 use serde::Deserialize;
 
 /// The wire dialect a provider speaks.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum Protocol {
     /// `OpenAI` chat completions, spoken by `DeepSeek` and by most gateways
@@ -19,7 +19,9 @@ pub enum Protocol {
 }
 
 /// Everything needed to reach a provider except the key.
-#[derive(Debug, Clone)]
+///
+/// `Hash` and `Eq` are what let a running flow keep one client per provider.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct ProviderSpec {
     /// Stable id used in configuration and error messages.
     pub id: String,

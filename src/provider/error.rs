@@ -79,6 +79,14 @@ pub enum Error {
         /// Option that has no equivalent.
         option: String,
     },
+    /// The answer was larger than the client is willing to hold.
+    #[error("`{provider}` answered with more than {limit} bytes")]
+    BodyTooLarge {
+        /// Provider that answered.
+        provider: String,
+        /// Cap that was exceeded, in bytes.
+        limit: usize,
+    },
 }
 
 impl Error {
@@ -88,6 +96,25 @@ impl Error {
             provider: provider.to_owned(),
             status,
             body: redact(body, secret.expose()),
+        }
+    }
+
+    /// Whether another attempt could plausibly succeed.
+    ///
+    /// Transport failures, rate limits, server errors and malformed answers
+    /// are worth trying again; a rejected request, a missing key or a body
+    /// over the cap will fail the same way every time.
+    pub fn retryable(&self) -> bool {
+        match self {
+            Self::Http { .. } | Self::Decode { .. } => true,
+            Self::Api { status, .. } => *status == 429 || *status >= 500,
+            Self::UnknownProvider(_)
+            | Self::Config { .. }
+            | Self::MissingKey { .. }
+            | Self::Shape { .. }
+            | Self::Request { .. }
+            | Self::Unsupported { .. }
+            | Self::BodyTooLarge { .. } => false,
         }
     }
 }
@@ -104,7 +131,22 @@ fn redact(body: &str, secret: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::redact;
+    use super::{Error, redact};
+    use crate::provider::Secret;
+
+    #[test]
+    fn only_transient_failures_are_retryable() {
+        let key = Secret::new("sk-test".to_owned());
+        assert!(Error::api("p", 503, "down", &key).retryable());
+        assert!(Error::api("p", 429, "slow down", &key).retryable());
+        assert!(!Error::api("p", 401, "rejected", &key).retryable());
+        assert!(!Error::api("p", 400, "malformed", &key).retryable());
+        let too_big = Error::BodyTooLarge {
+            provider: "p".to_owned(),
+            limit: 10,
+        };
+        assert!(!too_big.retryable());
+    }
 
     #[test]
     fn the_key_never_survives_redaction() {

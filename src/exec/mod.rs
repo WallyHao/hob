@@ -8,6 +8,7 @@
 // one run stays a value instead of an ambient.
 
 pub(crate) mod agent;
+pub(crate) mod budget;
 pub(crate) mod describe;
 pub(crate) mod file;
 pub(crate) mod logs;
@@ -25,6 +26,9 @@ use serde_json::Value;
 
 use crate::effect::{Failure, Request};
 use crate::paths::Paths;
+use crate::provider::Cache;
+
+use budget::{Budget, Limits};
 
 /// Per-flow state.
 #[derive(Debug)]
@@ -35,25 +39,41 @@ pub(crate) struct State {
     pub(crate) procs: HashMap<u64, proc::Session>,
     /// Open `agent` conversations by handle.
     pub(crate) chats: HashMap<u64, agent::Chat>,
+    /// Provider clients, one per provider, for the life of the run.
+    pub(crate) clients: Cache,
     /// Live process groups, shared with the interrupt handler.
     pub(crate) children: proc::Children,
     /// Log level: 0 quiet, 1 normal, 2 debug, 3 trace.
     pub(crate) verbosity: u8,
     /// Answer questions with their default instead of reading stdin.
     pub(crate) yes: bool,
+    /// What the run may spend on model calls.
+    pub(crate) budget: Budget,
+    /// How `term.print` treats styling.
+    pub(crate) color: term::Color,
     next_id: u64,
 }
 
 impl State {
     /// State for one run.
-    pub(crate) fn new(paths: Paths, verbosity: u8, yes: bool, children: proc::Children) -> Self {
+    pub(crate) fn new(
+        paths: Paths,
+        verbosity: u8,
+        yes: bool,
+        children: proc::Children,
+        limits: Limits,
+        color: term::Color,
+    ) -> Self {
         Self {
             paths,
             procs: HashMap::new(),
             chats: HashMap::new(),
+            clients: Cache::default(),
             children,
             verbosity,
             yes,
+            budget: Budget::new(limits),
+            color,
             next_id: 0,
         }
     }
@@ -68,9 +88,9 @@ impl State {
 /// Perform one effect.
 pub(crate) fn perform(state: &mut State, request: &Request) -> Result<Value, Failure> {
     match (request.ns.as_str(), request.op.as_str()) {
-        ("agent", "ask") => agent::ask(&decode(request)?),
+        ("agent", "ask") => agent::ask(state, &decode(request)?),
         ("agent", "open") => agent::open(state, &decode(request)?),
-        ("agent", "list") => agent::list(&decode(request)?),
+        ("agent", "list") => agent::list(state, &decode(request)?),
         ("agent", "send") => agent::send(state, &decode(request)?),
         ("agent", "push") => agent::push(state, &decode(request)?),
         ("agent", "turns") => agent::turns(state, &decode(request)?),
@@ -93,7 +113,7 @@ pub(crate) fn perform(state: &mut State, request: &Request) -> Result<Value, Fai
         ("proc", "state") => proc::state_of(state, &decode(request)?),
         ("proc", "reset") => proc::reset(state, &decode(request)?),
         ("proc", "close") => proc::close(state, &decode(request)?),
-        ("term", "print") => term::print(&decode(request)?),
+        ("term", "print") => term::print(&decode(request)?, state.color),
         ("term", "input") => term::input(&decode(request)?, state.yes),
         ("term", "allow") => term::allow(&decode(request)?, state.yes),
         ("term", "select") => term::select(&decode(request)?, state.yes),
