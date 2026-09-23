@@ -12,6 +12,7 @@ mod exec;
 mod lua;
 mod paths;
 mod store;
+mod trace;
 
 pub mod provider;
 

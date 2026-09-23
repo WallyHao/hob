@@ -1,4 +1,4 @@
-// --- cli::trace ---
+// --- trace ---
 // A JSONL record of every effect a run requested and settled.
 //
 // The file is created fresh per run: a trace describes one run, and appending
@@ -16,7 +16,7 @@ use std::time::Instant;
 
 use serde_json::Value;
 
-use crate::effect::{Failure, Request};
+use crate::effect::{Failure, Operation, Request};
 use crate::exec::redact::Redactor;
 
 /// Where and how a trace is written.
@@ -35,6 +35,7 @@ pub(crate) struct Trace {
     redact: Redactor,
     full: bool,
     started: Instant,
+    sequence: u64,
 }
 
 impl Trace {
@@ -47,16 +48,18 @@ impl Trace {
             redact: Redactor::from_env(),
             full,
             started: Instant::now(),
+            sequence: 0,
         })
     }
 
     /// Record that the flow asked for an effect.
     pub(crate) fn request(&mut self, request: &Request) {
+        self.sequence += 1;
         let mut cmd = self.redact.value(&request.cmd);
         if !self.full {
-            summarize(&request.ns, &request.op, &mut cmd);
+            summarize(request, &mut cmd);
         }
-        self.write(serde_json::json!({
+        self.write(&serde_json::json!({
             "event": "request",
             "ns": request.ns,
             "op": request.op,
@@ -70,7 +73,7 @@ impl Trace {
     /// Only the identity is repeated, not the arguments: the request line
     /// already carries them, and repeating them would double the file.
     pub(crate) fn outcome(&mut self, request: &Request, outcome: &str, error: Option<&str>) {
-        self.write(serde_json::json!({
+        self.write(&serde_json::json!({
             "event": "outcome",
             "ns": request.ns,
             "op": request.op,
@@ -80,12 +83,14 @@ impl Trace {
     }
 
     /// Write one line, giving up on the trace rather than the flow on failure.
-    fn write(&mut self, mut record: serde_json::Value) {
+    fn write(&mut self, record: &serde_json::Value) {
+        let mut record = self.redact.value(record);
         let Some(file) = self.file.as_mut() else {
             return;
         };
         let elapsed = u64::try_from(self.started.elapsed().as_millis()).unwrap_or(u64::MAX);
         if let Some(fields) = record.as_object_mut() {
+            fields.insert("id".to_owned(), Value::from(self.sequence));
             fields.insert("t".to_owned(), serde_json::Value::from(elapsed));
         }
         let result = serde_json::to_writer(&mut *file, &record)
@@ -99,34 +104,25 @@ impl Trace {
     }
 }
 
-/// Replace the fields that carry user content with their size, so a trace is
-/// safe to keep or share unless `--trace-full` said otherwise.
-fn summarize(ns: &str, op: &str, cmd: &mut Value) {
-    match (ns, op) {
-        ("file", "write") => mask_text(cmd, "text"),
-        ("agent", "ask" | "send") => {
-            mask_text(cmd, "prompt");
-            mask_text(cmd, "system");
-            mask_messages(cmd);
+// --- content summaries ---
+// Invalid requests use the union of content fields rather than leaking a bad input.
+fn summarize(request: &Request, cmd: &mut Value) {
+    let operation = Operation::parse(request);
+    let fields = operation.as_ref().map_or(
+        &[
+            "text", "prompt", "system", "messages", "message", "stdin", "line", "profile", "env",
+            "value", "msg",
+        ][..],
+        |operation| operation.policy().1,
+    );
+    for key in fields {
+        if let Some(value) = cmd.get_mut(*key) {
+            let summary = match &*value {
+                Value::String(text) => format!("<{} bytes>", text.len()),
+                Value::Array(items) => format!("<{} items>", items.len()),
+                other => format!("<{} bytes>", other.to_string().len()),
+            };
+            *value = Value::String(summary);
         }
-        ("agent", "open") => mask_text(cmd, "system"),
-        _ => {}
-    }
-}
-
-/// One string field becomes its size.
-fn mask_text(cmd: &mut Value, key: &str) {
-    let bytes = match cmd.get(key) {
-        Some(Value::String(text)) => text.len(),
-        _ => return,
-    };
-    cmd[key] = Value::String(format!("<{bytes} bytes>"));
-}
-
-/// The message list becomes its length.
-fn mask_messages(cmd: &mut Value) {
-    if matches!(cmd.get("messages"), Some(Value::Array(_))) {
-        let count = cmd["messages"].as_array().map_or(0, Vec::len);
-        cmd["messages"] = Value::String(format!("<{count} messages>"));
     }
 }

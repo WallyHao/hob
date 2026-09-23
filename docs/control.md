@@ -92,16 +92,18 @@ but a value it obtained another way may still be one.
 
 `--trace FILE` writes one JSON object per line for every effect: a `request`
 record carrying the arguments, then an `outcome` record with `ok`, `error`,
-`dry-run` or `declined`, plus the error message when there was one. Every line
-carries `t`, milliseconds since the run started, so the shape of a slow flow is
-visible without wall-clock timestamps.
+`dry-run` or `declined`, plus the error message when there was one. Request and
+outcome records share an `id`; every line also carries `t`, milliseconds since
+the run started, so the shape of a slow flow is visible without wall-clock
+timestamps.
 
 The file is created fresh per run: appending would mix runs without a boundary
-between them. Arguments are recorded, with the same secret masking a preview
-applies, so a key cannot end up at rest in the trace. The fields that carry
-user content — a `file.write` body, and a model call's prompt, system prompt
-and messages — are recorded as their size, so a trace can be kept or shared
-without the data in it; `--trace-full` records them as they are. A write
+between them. Arguments and errors are recorded after the same secret masking a
+preview applies, so a key cannot end up at rest in the trace. Fields that carry
+user content — file bodies, process input, model prompts and messages, injected
+chat turns and log text — are recorded as their size, so a trace can be kept or
+shared without the data in it. `--trace-full` records them as they are while
+still masking known credentials. A write
 failure mid-run prints a warning and abandons the trace rather than failing the
 flow; a trace file that cannot be created at all fails the run before it starts.
 

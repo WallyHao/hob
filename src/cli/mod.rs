@@ -11,7 +11,7 @@ mod flags;
 mod flow;
 mod help;
 pub(crate) mod report;
-pub(crate) mod trace;
+use crate::trace;
 
 use report::Format;
 

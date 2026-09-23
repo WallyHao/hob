@@ -8,8 +8,8 @@
 use std::path::PathBuf;
 
 use super::report::Format;
-use super::trace::Settings;
 use crate::driver::{Control, Mode};
+use crate::trace::Settings;
 
 use controls::Controls;
 use values::{MAX_VERBOSITY, is_verbose, pick};

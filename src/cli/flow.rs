@@ -7,10 +7,10 @@ use std::io::Write;
 use std::path::Path;
 
 use super::report::{self, Format};
-use super::trace::Settings;
 use crate::driver::{self, Control};
 use crate::store::trust::denial;
 use crate::store::{Command, Source};
+use crate::trace::Settings;
 
 use super::USAGE_EXIT;
 

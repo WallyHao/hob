@@ -30,6 +30,7 @@ fn a_trace_records_requests_and_outcomes() {
         .expect("an outcome record");
     assert_eq!(outcome["outcome"], "ok");
     assert!(records.iter().all(|record| record["t"].is_number()));
+    assert_eq!(request["id"], outcome["id"]);
 }
 
 #[test]
@@ -48,9 +49,17 @@ fn a_refused_effect_is_recorded_as_dry_run() {
 
 #[test]
 fn a_trace_masks_a_secret_from_the_environment() {
-    let flow = Flow::new("trace-secret", r#"hob.proc.shell("echo " .. hob.args[1])"#);
+    let flow = Flow::new(
+        "trace-secret",
+        r#"
+        local _, err = hob.effect(
+          "file", "read", { path = hob.args[1] }, { fallible = true }
+        )
+        hob.term.print(err)
+        "#,
+    );
     let output = flow.run_with(
-        &["--trace", "trace.jsonl", "supersecret123"],
+        &["--trace", "trace.jsonl", "--trace-full", "supersecret123"],
         &[("TEST_API_KEY", "supersecret123")],
         None,
     );
