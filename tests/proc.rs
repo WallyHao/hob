@@ -41,6 +41,24 @@ fn stdin_reaches_the_child() {
 }
 
 #[test]
+fn a_large_stdin_and_a_large_output_do_not_deadlock() {
+    // The child fills stdout before it reads a byte of stdin, so a parent that
+    // wrote stdin before draining the pipes would block forever.
+    let flow = Flow::new(
+        "pipe-load",
+        r#"
+        local text = string.rep("x", 200000)
+        local result = hob.proc.shell("head -c 200000 /dev/zero; cat", { stdin = text, timeout_ms = 20000 })
+        hob.assert(result.ok, "child failed: " .. result.stderr)
+        hob.term.print(tostring(#result.stdout))
+        "#,
+    );
+    let output = flow.run(&[]);
+    assert!(output.status.success(), "{output:?}");
+    assert_eq!(stdout(&output), "400000\n");
+}
+
+#[test]
 fn which_finds_programs_and_reports_the_rest_as_nil() {
     let flow = Flow::new(
         "which",

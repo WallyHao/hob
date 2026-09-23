@@ -16,9 +16,9 @@ local session = {}
 session.__index = session
 
 local ALLOWED = {
-  open = { cwd = true, env = true, profile = true },
-  exec = { inherit = true, stdin = true, timeout_ms = true, trim = true },
-  shell = { inherit = true, stdin = true, timeout_ms = true, trim = true },
+  open = { cwd = true, env = true, profile = true, env_clear = true },
+  exec = { inherit = true, stdin = true, timeout_ms = true, trim = true, env_clear = true },
+  shell = { inherit = true, stdin = true, timeout_ms = true, trim = true, env_clear = true },
 }
 
 local function check(op, opts)
@@ -36,6 +36,7 @@ local function options(opts)
     stdin = opts.stdin,
     timeout_ms = opts.timeout_ms,
     trim = opts.trim,
+    env_clear = opts.env_clear,
   }
 end
 
@@ -43,7 +44,8 @@ end
 --
 -- `opts.inherit` hands the terminal over instead of capturing output;
 -- `opts.stdin` writes text to the child; `opts.timeout_ms` kills a child that
--- runs too long, and the result then carries code 124.
+-- runs too long, and the result then carries code 124; `opts.env_clear` starts
+-- it with an empty environment.
 function proc.exec(argv, opts)
   check("exec", opts or {})
   local request = options(opts)
@@ -64,7 +66,10 @@ function proc.which(prog)
   return hob.effect("proc", "which", { prog = prog })
 end
 
---- Open a session: `opts.cwd`, `opts.env`, `opts.profile`.
+--- Open a session: `opts.cwd`, `opts.env`, `opts.profile`, `opts.env_clear`.
+--
+-- `opts.env_clear` starts every command with an empty environment instead of
+-- inheriting the process one; the session's `env` overrides still apply.
 function proc.open(opts)
   opts = opts or {}
   check("open", opts)
@@ -72,6 +77,7 @@ function proc.open(opts)
     cwd = opts.cwd,
     env = opts.env,
     profile = opts.profile,
+    env_clear = opts.env_clear,
   })
   return setmetatable({ id = id }, session)
 end

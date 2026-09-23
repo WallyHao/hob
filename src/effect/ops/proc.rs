@@ -17,6 +17,9 @@ pub(crate) struct Open {
     /// Shell text evaluated before each shell line.
     #[serde(default)]
     pub(crate) profile: Option<String>,
+    /// Start commands with an empty environment instead of inheriting one.
+    #[serde(default)]
+    pub(crate) env_clear: bool,
 }
 
 /// Options shared by `exec` and `shell`.
@@ -37,6 +40,9 @@ pub(crate) struct Options {
     /// Trim trailing whitespace from the captured streams.
     #[serde(default)]
     pub(crate) trim: bool,
+    /// Start the command with an empty environment.
+    #[serde(default)]
+    pub(crate) env_clear: bool,
 }
 
 /// `proc.exec`.

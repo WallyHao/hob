@@ -27,6 +27,7 @@ pub(crate) fn open(state: &mut State, request: &Open) -> Result<Value, Failure> 
         request.cwd.clone(),
         request.env.clone(),
         request.profile.clone(),
+        request.env_clear,
     )?;
     let id = state.id();
     state.procs.insert(id, session);
@@ -104,7 +105,11 @@ fn with<T>(
 ) -> Result<T, Failure> {
     match options.session {
         Some(id) => call(state, session_ref(state, id)?, options),
-        None => call(state, &Session::open(None, BTreeMap::new(), None)?, options),
+        None => call(
+            state,
+            &Session::open(None, BTreeMap::new(), None, options.env_clear)?,
+            options,
+        ),
     }
 }
 

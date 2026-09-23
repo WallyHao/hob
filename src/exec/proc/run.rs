@@ -14,6 +14,7 @@ use crate::effect::Failure;
 use crate::effect::ops::proc::Options;
 use crate::exec::State;
 use crate::exec::proc::Session;
+use crate::exec::proc::children::kill_group;
 use crate::exec::proc::spawn::{TIMEOUT_CODE, Waited, drain, trim, wait};
 
 /// Run one program in a session.
@@ -54,7 +55,11 @@ fn finish(
     command: &mut Command,
     options: &Options,
 ) -> Result<Value, Failure> {
-    command.current_dir(session.cwd()).envs(session.env());
+    command.current_dir(session.cwd());
+    if options.env_clear || session.env_clear() {
+        command.env_clear();
+    }
+    command.envs(session.env());
     own_group(command);
     if options.inherit {
         command
@@ -73,26 +78,46 @@ fn finish(
         .spawn()
         .map_err(|error| Failure::new(format!("cannot run `{program}`: {error}")))?;
     let _tracked = state.children.track(child.id());
-    if !options.inherit
-        && let Some(text) = &options.stdin
-        && let Some(mut pipe) = child.stdin.take()
-    {
-        let _ = pipe.write_all(text.as_bytes());
-        // Dropping the pipe here is what tells the child input ended.
-    }
+    // Every pipe is taken before waiting so each has one owner: the drains must
+    // read while the child runs, or a child that fills a pipe before reading
+    // its input would deadlock both sides.
+    let stdin = child.stdin.take();
+    let feed = if options.inherit {
+        None
+    } else {
+        options.stdin.clone()
+    };
     let stdout = child.stdout.take();
     let stderr = child.stderr.take();
     let (waited, out, err) = std::thread::scope(|scope| -> Result<_, Failure> {
+        // Feeding input on its own thread keeps the order free; dropping the
+        // pipe when `feed` is `None` is what tells the child input ended.
+        let writer = stdin.and_then(|mut pipe| {
+            feed.map(|text| {
+                scope.spawn(move || {
+                    let _ = pipe.write_all(text.as_bytes());
+                })
+            })
+        });
         let out_handle = stdout.map(|pipe| scope.spawn(move || drain(pipe)));
         let err_handle = stderr.map(|pipe| scope.spawn(move || drain(pipe)));
-        let waited = wait(&mut child, options.timeout_ms)?;
+        let waited = wait(&mut child, options.timeout_ms);
+        if waited.is_err() {
+            // Nothing else unblocks the writer when the wait itself failed and
+            // the child is still alive with a full input pipe.
+            kill_group(child.id());
+            let _ = child.wait();
+        }
         let out = out_handle
             .map(|handle| handle.join().unwrap_or_default())
             .unwrap_or_default();
         let err = err_handle
             .map(|handle| handle.join().unwrap_or_default())
             .unwrap_or_default();
-        Ok((waited, out, err))
+        if let Some(writer) = writer {
+            let _ = writer.join();
+        }
+        Ok((waited?, out, err))
     })?;
     let code = match waited {
         Waited::Exited(status) => status.code().unwrap_or(-1),

@@ -131,26 +131,29 @@ there is no automatic loop. Each entry is `{id, name, arguments}`, with
 
 | Function | Length | What it does |
 | --- | --- | --- |
-| `proc.open(opts?)` | 4 | open a session: `cwd`, `env`, `profile` |
+| `proc.open(opts?)` | 4 | open a session: `cwd`, `env`, `profile`, `env_clear` |
 | `proc.exec(argv, opts?)` | 4 | run one program; `{inherit = true}` hands over the terminal |
 | `proc.shell(line, opts?)` | 5 | run one shell line through `sh -c` |
 | `proc.which(prog)` | 5 | resolve a program on `PATH` |
 
 | Session | Length | What it does |
 | --- | --- | --- |
-| `:exec(argv, opts?)` | 4 | run a program; `stdin`, `timeout_ms`, `trim`, `inherit` |
+| `:exec(argv, opts?)` | 4 | run a program; `stdin`, `timeout_ms`, `trim`, `inherit`, `env_clear` |
 | `:shell(line, opts?)` | 5 | run a shell line |
 | `:setenv(name, value)` | 6 | add or replace one environment override |
 | `:unset(name)` | 5 | remove one override |
 | `:chdir(path)` | 5 | move the session |
 | `:setup(text)` | 5 | replace the profile sourced before each command |
-| `:state()` | 5 | `{cwd, env}` |
+| `:state()` | 5 | `{cwd, env, env_clear}` |
 | `:reset()` | 5 | restore the opening context |
 | `:close()` | 5 | drop the session |
 
 `exec` results are `{code, stdout, stderr, ok, duration_ms, truncated}`.
 `timeout_ms` kills the child and reports code 124, as `timeout(1)` does; each
 stream keeps its first megabyte, and `truncated` says when more arrived.
+`env_clear` starts a command with an empty environment, so a flow can keep the
+process's secrets out of what it runs; the session's `env` overrides still
+apply on top of it.
 `profile` is shell text evaluated before each shell line, not before `exec`.
 Every command becomes the head of its own process group, so a timeout or Ctrl-C
 kills the tree it started rather than leaving orphans (`docs/control.md`).
