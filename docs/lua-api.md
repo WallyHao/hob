@@ -145,7 +145,7 @@ kills the tree it started rather than leaving orphans (`docs/control.md`).
 ## `hob.logs` (implemented)
 
 `trace` (5), `debug` (5), `info` (4), `warn` (4), `error` (5); `info` and up
-are visible by default, the rest need `-vv`/`-vvv`.
+are visible by default, `debug` needs `-v` and `trace` needs `-vv`.
 
 ## `hob.json` (implemented)
 

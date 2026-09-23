@@ -47,6 +47,28 @@ fn quiet_and_verbose_control_log_lines() {
 }
 
 #[test]
+fn verbose_is_capped_at_trace() {
+    let flow = Flow::new("verbose-cap", r#"hob.logs.trace("detail")"#);
+    let output = flow.run(&["-vvvvvv"]);
+    assert!(output.status.success(), "{output:?}");
+    assert!(stderr(&output).contains("trace: detail"), "{output:?}");
+}
+
+#[test]
+fn a_bad_timeout_is_refused() {
+    let flow = Flow::new("timeout-bad", "");
+    for args in [
+        &["--timeout"][..],
+        &["--timeout", "soon"][..],
+        &["--timeout", "0"][..],
+    ] {
+        let output = flow.run(args);
+        assert_eq!(output.status.code(), Some(2), "{args:?}: {output:?}");
+        assert!(stderr(&output).contains("timeout"), "{args:?}: {output:?}");
+    }
+}
+
+#[test]
 fn dry_run_and_step_cannot_be_combined() {
     let flow = Flow::new("conflict", "");
     let output = flow.run(&["--dry-run", "--step"]);

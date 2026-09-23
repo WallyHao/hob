@@ -10,7 +10,13 @@ that has a flag of its own can still receive it.
 | `--dry-run` | Perform reads, refuse everything else, print what was refused |
 | `--step` | Ask before every effect |
 | `--trace FILE` | Write a JSONL record of every effect (overwrites) |
-| `-v`, `-vv`, `-vvv` | Show `debug`, then `trace` log lines |
+| `--trace-full` | With `--trace`, record content fields as they are |
+| `--timeout SECS` | Stop the whole run after SECS seconds, with exit 124 |
+| `--json` | Print `list`, `which` and `doctor` as one JSON object; other verbs ignore it |
+| `--max-calls N` | Refuse the run's N+1'th provider call, model listings included |
+| `--max-tokens N` | Refuse a provider call once N reported tokens were spent |
+| `--color WHEN` | `term.print` styling: `auto` (terminal only), `always`, `never` |
+| `-v`, `-vv` | Show `debug` log lines, then `trace` ones; more `v`s mean `-vv` |
 | `-q`, `--quiet` | Only warnings and errors |
 | `-y`, `--yes` | Answer every question with its default |
 | `--` | Everything after it belongs to the flow |

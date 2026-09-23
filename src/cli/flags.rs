@@ -7,7 +7,15 @@
 
 use std::path::PathBuf;
 
+use super::report::Format;
+use super::trace::Settings;
 use crate::driver::{Control, Mode};
+
+use controls::Controls;
+use values::{MAX_VERBOSITY, is_verbose, pick};
+
+mod controls;
+mod values;
 
 /// One parsed command line.
 #[derive(Debug)]
@@ -19,7 +27,8 @@ pub(crate) enum Invocation {
     /// A command, its control flags and its own words.
     Command {
         control: Control,
-        trace: Option<PathBuf>,
+        trace: Option<Settings>,
+        format: Format,
         words: Vec<String>,
     },
 }
@@ -37,10 +46,16 @@ where
     let mut help = false;
     let mut version = false;
     let mut trace: Option<PathBuf> = None;
+    let mut trace_full = false;
+    let mut format = Format::Text;
+    let mut controls = Controls::default();
     let mut words = Vec::new();
     let mut rest = args.into_iter();
     while let Some(word) = rest.next() {
         let word = word.as_ref();
+        if controls.read(word, &mut rest)? {
+            continue;
+        }
         match word {
             "--" => {
                 words.extend(rest.map(|word| word.as_ref().to_owned()));
@@ -63,10 +78,16 @@ where
                 }
                 trace = Some(PathBuf::from(path));
             }
+            "--trace-full" => trace_full = true,
+            "--json" => format = Format::Json,
             "-y" | "--yes" => yes = true,
             "-q" | "--quiet" => quiet = true,
-            "--verbose" => verbose += 1,
-            _ if is_verbose(word) => verbose += u8::try_from(word.len() - 1).unwrap_or(u8::MAX),
+            "--verbose" => verbose = (verbose + 1).min(MAX_VERBOSITY),
+            _ if is_verbose(word) => {
+                verbose = verbose
+                    .saturating_add(u8::try_from(word.len() - 1).unwrap_or(u8::MAX))
+                    .min(MAX_VERBOSITY);
+            }
             _ if word.starts_with('-') && words.is_empty() => {
                 return Err(format!("unknown argument `{word}`"));
             }
@@ -75,6 +96,9 @@ where
     }
     if quiet && verbose > 0 {
         return Err("`-q` and `-v` cannot be combined".to_owned());
+    }
+    if trace_full && trace.is_none() {
+        return Err("`--trace-full` needs `--trace`".to_owned());
     }
     if help || (words.is_empty() && !version) {
         return Ok(Invocation::Help);
@@ -87,26 +111,15 @@ where
             mode,
             verbosity: if quiet { 0 } else { 1 + verbose },
             yes,
+            timeout: controls.timeout,
+            limits: controls.limits,
+            color: controls.color,
         },
-        trace,
+        trace: trace.map(|path| Settings {
+            path,
+            full: trace_full,
+        }),
+        format,
         words,
     })
-}
-
-/// Whether a word is a run of `v`s after one dash, e.g. `-vv`.
-fn is_verbose(word: &str) -> bool {
-    word.len() > 1 && word.starts_with('-') && word[1..].bytes().all(|byte| byte == b'v')
-}
-
-/// Combine a mode flag with the one already seen.
-fn pick(current: Mode, wanted: Mode, flag: &str) -> Result<Mode, String> {
-    if current == Mode::Run || current == wanted {
-        return Ok(wanted);
-    }
-    let other = if current == Mode::DryRun {
-        "--dry-run"
-    } else {
-        "--step"
-    };
-    Err(format!("`{flag}` conflicts with `{other}`"))
 }
