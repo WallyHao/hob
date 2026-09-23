@@ -1,13 +1,14 @@
 // --- provider::config ---
-// Providers from the user's configuration file.
+// Providers and defaults from the user's configuration file.
 //
 // A provider that is not in the registry may be defined in `config.toml` under
 // `[providers.<id>]`, so a local gateway or an internal endpoint does not need
 // an inline table in every flow. The registry wins for an id it knows: that is
 // what a name like `deepseek` means.
 //
-// Keys stay in the environment: an entry names the variable to read, never the
-// key itself.
+// `[defaults]` holds what a call uses when the flow names neither: the provider
+// to resolve and the model to send. Keys stay in the environment: an entry
+// names the variable to read, never the key itself.
 
 use std::collections::BTreeMap;
 
@@ -18,10 +19,23 @@ use super::spec::{Protocol, ProviderSpec};
 use crate::paths;
 
 /// The shape of `config.toml`.
-#[derive(Debug, Deserialize)]
-struct File {
+#[derive(Debug, Default, Deserialize)]
+pub(super) struct File {
     #[serde(default)]
     providers: BTreeMap<String, Entry>,
+    #[serde(default)]
+    pub(super) defaults: Defaults,
+}
+
+/// The `[defaults]` table.
+#[derive(Debug, Default, Deserialize)]
+pub(crate) struct Defaults {
+    /// Provider id used when a call names none.
+    #[serde(default)]
+    pub(crate) provider: Option<String>,
+    /// Model id used when a call names none.
+    #[serde(default)]
+    pub(crate) model: Option<String>,
 }
 
 /// One `[providers.<id>]` table.
@@ -44,14 +58,14 @@ pub(crate) fn find(id: &str) -> Result<Option<ProviderSpec>, Error> {
     Ok(all()?.into_iter().find(|spec| spec.id == id))
 }
 
-/// Every provider the configuration file defines.
-pub(crate) fn all() -> Result<Vec<ProviderSpec>, Error> {
+/// Parse the configuration file; a missing file is an empty one.
+pub(super) fn read() -> Result<File, Error> {
     let Some(path) = paths::config_dir().map(|dir| dir.join("config.toml")) else {
-        return Ok(Vec::new());
+        return Ok(File::default());
     };
     let text = match std::fs::read_to_string(&path) {
         Ok(text) => text,
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(Vec::new()),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(File::default()),
         Err(error) => {
             return Err(Error::Config {
                 path: path.display().to_string(),
@@ -59,11 +73,15 @@ pub(crate) fn all() -> Result<Vec<ProviderSpec>, Error> {
             });
         }
     };
-    let file: File = toml::from_str(&text).map_err(|error| Error::Config {
+    toml::from_str(&text).map_err(|error| Error::Config {
         path: path.display().to_string(),
         message: error.to_string(),
-    })?;
-    Ok(file
+    })
+}
+
+/// Every provider the configuration file defines.
+pub(crate) fn all() -> Result<Vec<ProviderSpec>, Error> {
+    Ok(read()?
         .providers
         .into_iter()
         .map(|(id, entry)| ProviderSpec {

@@ -52,6 +52,10 @@ change per request, so `agent` requires `model` rather than guessing one.
 not in the registry:
 
 ```toml
+[defaults]
+provider = "local"   # used when a call names no provider
+model = "qwen3-8b"   # used when a call names no model
+
 [providers.local]
 base_url = "http://127.0.0.1:8080"
 api_key_env = "LOCAL_KEY"
@@ -63,6 +67,10 @@ headers = { X-Route = "team" }
 the file only adds names. The key policy is unchanged: an entry names the
 variable to read, never the key itself. A file that cannot be parsed fails the
 call that needed it, with the path and the parser's message.
+
+`[defaults]` is what a call with no `provider`/`model` option uses. Without it,
+`provider` falls back to `deepseek` and a missing `model` is still an error: ids
+change, so the engine does not guess one, it only follows what was written down.
 
 A flow names a provider as a registry id, a name from the configuration file, or
 an inline table; the first two are looked up in that order.
