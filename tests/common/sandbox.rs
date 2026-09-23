@@ -7,6 +7,9 @@ use std::process::{Command, Output};
 use super::BIN;
 
 /// A throwaway project and configuration under the system temp directory.
+///
+/// The project is trusted by default, the way a checkout is after `hob trust`;
+/// `untrusted` builds one whose project commands are refused.
 pub(crate) struct Sandbox {
     root: PathBuf,
     config: PathBuf,
@@ -14,13 +17,32 @@ pub(crate) struct Sandbox {
 
 impl Sandbox {
     pub(crate) fn new(tag: &str) -> Self {
+        Self::build(tag, true)
+    }
+
+    /// A sandbox whose project commands are not trusted.
+    pub(crate) fn untrusted(tag: &str) -> Self {
+        Self::build(tag, false)
+    }
+
+    fn build(tag: &str, trust: bool) -> Self {
         let root = std::env::temp_dir().join(format!("hob-store-{}-{tag}", std::process::id()));
         let _ = fs::remove_dir_all(&root);
         let config = root.join("config");
         fs::create_dir_all(root.join("project").join(".git")).expect("project marker");
         fs::create_dir_all(root.join("outside")).expect("outside dir");
         fs::create_dir_all(config.join("commands")).expect("config dir");
-        Self { root, config }
+        let sandbox = Self { root, config };
+        if trust {
+            sandbox.trust();
+        }
+        sandbox
+    }
+
+    /// Trust the project, as a user who ran `hob trust` once has it.
+    pub(crate) fn trust(&self) {
+        let output = self.run_project(&["trust"]);
+        assert!(output.status.success(), "hob trust: {output:?}");
     }
 
     pub(crate) fn project(&self) -> PathBuf {

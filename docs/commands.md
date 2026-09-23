@@ -19,6 +19,24 @@ file is shadowed, which `hob list` and `hob which` show.
 `HOB_CONFIG_DIR` exists so tests and throwaway profiles can run against a
 temporary configuration.
 
+## Trust
+
+A project's commands are code, so a checkout may not run them until the user
+says so once. `hob trust` records the project root in `<config>/trust.json`;
+`hob trust --revoke` takes it back and `hob trust --list` prints the roots. The
+store lives in the user's configuration, never in the project, so a repository
+cannot bless itself; roots are canonicalized, so a command reached through a
+relative path or a symlink compares equal to the one that was trusted.
+
+Only the project layer is gated. `hob run <file.lua>` is an explicit decision,
+and the user layer and builtins are the user's own configuration. `hob list`
+marks a project command `(untrusted)`, `hob doctor` reports the current
+project's state, and `hob <name> --help` stays available because it reads the
+header instead of running anything. A refused command exits 1 and names the
+project and the command that fixes it; it does not fall back to a shadowed user
+command, because running a different file under the name would be worse than
+refusing.
+
 ## Loading
 
 Discovery never executes a command. A file contributes a name, a path and its
@@ -33,8 +51,8 @@ total: `foo/bar.lua` is the command `foo/bar`, so a subdirectory is a namespace
 rather than a second naming scheme. A symlinked directory is not searched, so
 discovery cannot loop; a symlinked file is a command like any other. Files whose
 names do not match, or that take a reserved verb as their name (`run`, `list`,
-`new`, `rm`, `which`), are not commands; `hob list` reports them under `ignored`
-rather than hiding them.
+`new`, `rm`, `trust`, `which`), are not commands; `hob list` reports them under
+`ignored` rather than hiding them.
 
 ## Verbs
 
@@ -46,14 +64,16 @@ rather than hiding them.
 | `hob which <name>` | every layer that defines the name, effective first | 0, 1 unknown |
 | `hob new <name> [--user\|--local]` | write a template; project when inside one, the user directory otherwise | 0, 1 exists, 2 bad flags |
 | `hob rm <name>` | delete the effective file | 0, 1 unknown |
+| `hob trust [--revoke\|--list]` | trust the current project so its commands may run | 0, 1 not a project, 2 bad flags |
 
 `rm` only ever deletes a file the registry resolved: it takes a name, never a
 path, and cannot touch a builtin. Removing a project command that shadows a
-user command prints the path that becomes effective again.
+user command prints the path that becomes effective again. `list`, `which` and
+`doctor` also answer as one JSON object under `--json` (`docs/control.md`).
 
-Control flags (`--dry-run`, `--step`, `-v`, `-q`, `--yes`) may follow the
-command name; `--` ends them and hands everything after it to the flow. They are
-described in `docs/control.md`.
+Control flags (`--dry-run`, `--step`, `--trace`, `--timeout`, `-v`, `-q`,
+`--yes`) may follow the command name; `--` ends them and hands everything after
+it to the flow. They are described in `docs/control.md`.
 
 Unknown names exit 2 with a nearest-name suggestion (edit distance at most 2),
 or a `hob run` hint when the word looks like a path.

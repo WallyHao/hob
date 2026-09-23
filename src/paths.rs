@@ -97,7 +97,7 @@ pub(crate) fn config_dir() -> Option<PathBuf> {
 }
 
 /// Walk up until a directory holds `.hob` or `.git`.
-fn project_root(cwd: &Path) -> Option<PathBuf> {
+pub(crate) fn project_root(cwd: &Path) -> Option<PathBuf> {
     cwd.ancestors()
         .find(|dir| dir.join(".hob").exists() || dir.join(".git").exists())
         .map(Path::to_path_buf)

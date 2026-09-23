@@ -8,10 +8,12 @@
 
 mod change;
 mod create;
+mod grant;
 mod meta;
 mod query;
 mod scan;
 mod suggest;
+pub(crate) mod trust;
 
 use std::collections::BTreeMap;
 use std::path::PathBuf;
@@ -21,12 +23,13 @@ use crate::effect::Failure;
 
 pub(crate) use change::remove;
 pub(crate) use create::new;
+pub(crate) use grant::trust;
 pub(crate) use meta::{Args, Meta};
 pub(crate) use query::{list, unknown, which};
 pub(crate) use scan::scan;
 
 /// Names the CLI itself owns; a command may not shadow them.
-pub(crate) const RESERVED: &[&str] = &["list", "new", "rm", "run", "which"];
+pub(crate) const RESERVED: &[&str] = &["list", "new", "rm", "run", "trust", "which"];
 
 /// Which layer a command came from.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

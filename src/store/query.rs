@@ -9,7 +9,8 @@ use std::path::Path;
 use crate::effect::Failure;
 
 use super::suggest::suggest;
-use super::{Command, Listing, one};
+use super::trust::Trusted;
+use super::{Command, Listing, Origin, one};
 
 /// Print the effective commands and the files discovery ignored.
 pub(crate) fn list(listing: &Listing, rest: &[String], out: &mut dyn Write) -> Result<(), Failure> {
@@ -19,6 +20,7 @@ pub(crate) fn list(listing: &Listing, rest: &[String], out: &mut dyn Write) -> R
             crate::cli::USAGE_EXIT,
         ));
     }
+    let trusted = Trusted::load().unwrap_or_default();
     let commands = listing.effective_all();
     if commands.is_empty() {
         let _ = writeln!(out, "no commands found; create one with `hob new <name>`");
@@ -27,7 +29,7 @@ pub(crate) fn list(listing: &Listing, rest: &[String], out: &mut dyn Write) -> R
         let mut origin_width = "ORIGIN".len();
         let mut rows = Vec::new();
         for command in commands {
-            let (name, origin) = display(listing, command);
+            let (name, origin) = display(listing, command, &trusted);
             name_width = name_width.max(name.len());
             origin_width = origin_width.max(origin.len());
             let summary = command
@@ -113,14 +115,17 @@ pub(crate) fn unknown(name: &str, listing: &Listing) -> String {
     message
 }
 
-/// Name and origin column for one row; a project command that shadows a user
-/// file says so.
-fn display(listing: &Listing, command: &Command) -> (String, String) {
-    let shadowed = listing.chain(&command.name).count() > 1;
-    let origin = if shadowed {
-        format!("{} (shadows user)", command.origin.label())
-    } else {
-        command.origin.label().to_owned()
-    };
+/// Name and origin column for one row; a project command says when it shadows
+/// a user file and when its checkout is not trusted.
+fn display(listing: &Listing, command: &Command, trusted: &Trusted) -> (String, String) {
+    let mut origin = command.origin.label().to_owned();
+    if listing.chain(&command.name).count() > 1 {
+        origin = format!("{origin} (shadows user)");
+    }
+    if command.origin == Origin::Project
+        && command.path().is_none_or(|path| !trusted.allows_file(path))
+    {
+        origin = format!("{origin} (untrusted)");
+    }
     (command.name.clone(), origin)
 }
