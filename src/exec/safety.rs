@@ -30,7 +30,6 @@ impl Safety {
 /// the run itself owns.
 const READS: &[(&str, &str)] = &[
     ("agent", "open"),
-    ("agent", "list"),
     ("agent", "push"),
     ("agent", "turns"),
     ("agent", "usage"),
@@ -64,6 +63,9 @@ mod tests {
         assert_eq!(Safety::of("proc", "shell"), Safety::SideEffect);
         assert_eq!(Safety::of("agent", "ask"), Safety::SideEffect);
         assert_eq!(Safety::of("agent", "send"), Safety::SideEffect);
+        // Listing models reaches the network and reads a key, so a preview
+        // must not perform it even though it writes nothing.
+        assert_eq!(Safety::of("agent", "list"), Safety::SideEffect);
         assert_eq!(Safety::of("term", "allow"), Safety::SideEffect);
     }
 

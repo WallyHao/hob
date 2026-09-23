@@ -102,6 +102,25 @@ fn step_masks_a_secret_from_the_environment() {
 }
 
 #[test]
+fn dry_run_refuses_a_model_listing() {
+    let flow = Flow::new(
+        "dry-list",
+        r#"
+        local provider = { id = "test", base_url = "http://127.0.0.1:1", api_key_env = "NO_KEY" }
+        local models = hob.agent.list{ provider = provider }
+        hob.term.print(tostring(#models))
+        "#,
+    );
+    let output = flow.run(&["--dry-run"]);
+    assert!(output.status.success(), "{output:?}");
+    assert_eq!(stdout(&output), "0\n");
+    assert!(
+        stderr(&output).contains("dry-run: agent.list"),
+        "{output:?}"
+    );
+}
+
+#[test]
 fn step_without_stdin_is_an_error() {
     let flow = Flow::new("step-closed", r#"hob.file.write("x.txt", "y")"#);
     let output = flow.run(&["--step"]);

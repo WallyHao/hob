@@ -22,6 +22,7 @@ pub(crate) fn result(state: &State, request: &Request) -> Value {
     match (request.ns.as_str(), request.op.as_str()) {
         ("agent", "ask") => ask(request),
         ("agent", "send") => send(state, request),
+        ("agent", "list") => Value::Array(Vec::new()),
         ("proc", "exec" | "shell") => quiet_success(),
         ("term", "allow") => Value::Bool(bool_field(request, "default")),
         ("term", "input") => Value::String(text_field(request, "default")),
