@@ -45,6 +45,13 @@ pub(crate) async fn run(flow: Flow) -> std::process::Output {
     run_with(flow, vec![("TEST_KEY".to_owned(), KEY.to_owned())]).await
 }
 
+/// Run the flow with control flags and the provider key present.
+pub(crate) async fn run_args(flow: Flow, args: &'static [&'static str]) -> std::process::Output {
+    tokio::task::spawn_blocking(move || flow.run_with(args, &[("TEST_KEY", KEY)], None))
+        .await
+        .expect("the flow thread finishes")
+}
+
 /// Run the flow with an explicit environment.
 pub(crate) async fn run_with(flow: Flow, env: Vec<(String, String)>) -> std::process::Output {
     tokio::task::spawn_blocking(move || {

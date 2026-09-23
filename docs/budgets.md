@@ -8,9 +8,9 @@ each gate; this page is the index.
 
 | Gate | Where | Budget | Measured | Kind |
 | --- | --- | --- | --- | --- |
-| Release binary size | `scripts/check_binary_size.sh` | 8 MiB | 5784 KiB | absolute |
+| Release binary size | `scripts/check_binary_size.sh` | 8 MiB | 5929 KiB | absolute |
 | Peak heap, `hob --version` | `scripts/check_heap.sh` | 16 KiB | 1736 B | absolute |
-| Peak heap, `hob run` (one-line flow) | `scripts/check_heap.sh` | 128 KiB | 68 KiB | absolute |
+| Peak heap, `hob run` (one-line flow) | `scripts/check_heap.sh` | 128 KiB | 69 KiB | absolute |
 | Startup allocations | `tests/allocations.rs` | 4 KiB, 32 allocations | 983 B, 2 allocations | absolute |
 | Normal dependencies | `scripts/check_deps.sh` | 150 crates, denylist | 108 crates | absolute |
 | Startup instructions | `benches/startup.rs` | against a saved baseline | 1534 / 810 / 3521 | relative |
@@ -52,6 +52,8 @@ override the scripts for local experiments, never for CI.
 These are designed but cannot exist before the feature they measure:
 
 - Scaling ratio tests (10/100/1000 steps) for parse, plan and context assembly.
-- LLM request, retry and byte budgets against a local mock server.
+- Cost budgets: a model price table has to exist before a dollar cap can mean
+  anything. Request and token caps (`--max-calls`, `--max-tokens`) landed with
+  `tests/budget.rs` and need no number here.
 
 Each lands in the same pull request as the feature, not after it.
