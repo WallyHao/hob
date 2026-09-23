@@ -90,6 +90,10 @@ impl Chat {
         Value::Array(self.messages.iter().map(messages::turn).collect())
     }
 
+    pub(crate) fn schema(&self) -> Option<&Value> {
+        self.settings.schema.as_ref()
+    }
+
     /// The provider this conversation is bound to.
     pub(crate) fn spec(&self) -> &ProviderSpec {
         &self.spec

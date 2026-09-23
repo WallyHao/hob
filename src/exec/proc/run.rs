@@ -12,14 +12,14 @@ use serde_json::{Value, json};
 
 use crate::effect::Failure;
 use crate::effect::ops::proc::Options;
-use crate::exec::State;
+use crate::exec::RunContext;
 use crate::exec::proc::Session;
 use crate::exec::proc::children::kill_group;
 use crate::exec::proc::spawn::{TIMEOUT_CODE, Waited, drain, trim, wait};
 
 /// Run one program in a session.
 pub(crate) fn program(
-    state: &State,
+    state: &RunContext,
     session: &Session,
     argv: &[String],
     options: &Options,
@@ -34,7 +34,7 @@ pub(crate) fn program(
 
 /// Run one shell line in a session, after its profile.
 pub(crate) fn shell(
-    state: &State,
+    state: &RunContext,
     session: &Session,
     line: &str,
     options: &Options,
@@ -50,7 +50,7 @@ pub(crate) fn shell(
 
 /// Apply the context, spawn, wait and turn the result into a value.
 fn finish(
-    state: &State,
+    state: &RunContext,
     session: &Session,
     command: &mut Command,
     options: &Options,

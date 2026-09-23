@@ -14,7 +14,11 @@
 use serde_json::{Map, Value};
 
 pub(crate) mod bridge;
+mod operation;
 pub(crate) mod ops;
+mod policy;
+pub(crate) use operation::Operation;
+pub(crate) use policy::Safety;
 
 pub(crate) use bridge::{json_to_lua, lua_to_json};
 
@@ -103,8 +107,7 @@ impl Request {
         };
         let ns = string_field(&fields, "ns")?;
         let op = string_field(&fields, "op")?;
-        // An empty Lua table encodes as `null`, so a missing or empty `cmd`
-        // both mean "no arguments".
+        // A missing command and the legacy null encoding both mean no arguments.
         let cmd = match fields.remove("cmd").unwrap_or(Value::Null) {
             Value::Object(arguments) => Value::Object(arguments),
             Value::Null => Value::Object(Map::new()),

@@ -12,11 +12,11 @@ use std::time::Duration;
 
 use serde_json::Value;
 
-use crate::effect::{Failure, Request};
+use crate::effect::{Failure, Operation, Request, Safety};
 use crate::exec::budget::Limits;
 use crate::exec::redact::Redactor;
 use crate::exec::term::Color;
-use crate::exec::{State, describe, safety::Safety, skipped};
+use crate::exec::{RunContext, describe, skipped};
 
 /// How much of the work to perform.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -80,28 +80,39 @@ impl Gate {
     }
 
     /// Decide what happens to one effect.
-    pub(crate) fn decide(&self, state: &State, request: &Request) -> Result<Decision, Failure> {
-        let safety = Safety::of(&request.ns, &request.op);
+    pub(crate) fn decide(
+        &self,
+        state: &RunContext,
+        request: &Request,
+        operation: &Operation,
+    ) -> Result<Decision, Failure> {
+        let safety = operation.policy().0;
         match self.mode {
             Mode::Run => Ok(Decision::Run),
-            Mode::DryRun if safety == Safety::ReadOnly => Ok(Decision::Run),
-            Mode::DryRun => Ok(self.refuse(state, request, "dry-run")),
+            Mode::DryRun if safety != Safety::SideEffect => Ok(Decision::Run),
+            Mode::DryRun => Ok(self.refuse(state, request, operation, "dry-run")),
             Mode::Step => {
                 if self.yes || self.approve(request)? {
                     Ok(Decision::Run)
                 } else {
-                    Ok(self.refuse(state, request, "declined"))
+                    Ok(self.refuse(state, request, operation, "declined"))
                 }
             }
         }
     }
 
     /// Print the effect and stand in for its result.
-    fn refuse(&self, state: &State, request: &Request, reason: &'static str) -> Decision {
+    fn refuse(
+        &self,
+        state: &RunContext,
+        request: &Request,
+        operation: &Operation,
+        reason: &'static str,
+    ) -> Decision {
         let _ = writeln!(io::stderr(), "{reason}: {}", self.line(request));
         Decision::Skip {
             reason,
-            value: skipped::result(state, request),
+            value: skipped::result(state, request, operation),
         }
     }
 

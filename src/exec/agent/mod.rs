@@ -15,13 +15,13 @@ use serde_json::Value;
 
 use crate::effect::Failure;
 use crate::effect::ops::agent::{Ask, Handle, List, Open, Push, Send};
-use crate::exec::State;
+use crate::exec::RunContext;
 use crate::provider::{Client, ProviderSpec};
 
 pub(crate) use chat::Chat;
 
 /// One round trip.
-pub(crate) fn ask(state: &mut State, request: &Ask) -> Result<Value, Failure> {
+pub(crate) fn ask(state: &mut RunContext, request: &Ask) -> Result<Value, Failure> {
     let spec = provider::spec(request.provider.as_ref())?;
     let model = provider::model(request.model.as_deref())?;
     let messages = messages::opening(
@@ -42,7 +42,7 @@ pub(crate) fn ask(state: &mut State, request: &Ask) -> Result<Value, Failure> {
 }
 
 /// Open a conversation and return its handle.
-pub(crate) fn open(state: &mut State, request: &Open) -> Result<Value, Failure> {
+pub(crate) fn open(state: &mut RunContext, request: &Open) -> Result<Value, Failure> {
     let spec = provider::spec(request.provider.as_ref())?;
     let model = provider::model(request.model.as_deref())?;
     let id = state.id();
@@ -59,7 +59,7 @@ pub(crate) fn open(state: &mut State, request: &Open) -> Result<Value, Failure> 
 }
 
 /// The models a provider lists.
-pub(crate) fn list(state: &mut State, request: &List) -> Result<Value, Failure> {
+pub(crate) fn list(state: &mut RunContext, request: &List) -> Result<Value, Failure> {
     let spec = provider::spec(request.provider.as_ref())?;
     let client = client(state, &spec)?;
     let models = provider::models(&client, &state.budget)?;
@@ -69,7 +69,7 @@ pub(crate) fn list(state: &mut State, request: &List) -> Result<Value, Failure> 
 }
 
 /// One turn in a conversation.
-pub(crate) fn send(state: &mut State, request: &Send) -> Result<Value, Failure> {
+pub(crate) fn send(state: &mut RunContext, request: &Send) -> Result<Value, Failure> {
     let spec = chat_ref(state, request.session)?.spec().clone();
     let client = client(state, &spec)?;
     let budget = state.budget.clone();
@@ -85,29 +85,29 @@ pub(crate) fn send(state: &mut State, request: &Send) -> Result<Value, Failure> 
 }
 
 /// Inject a message without calling the model.
-pub(crate) fn push(state: &mut State, request: &Push) -> Result<Value, Failure> {
+pub(crate) fn push(state: &mut RunContext, request: &Push) -> Result<Value, Failure> {
     chat(state, request.session)?.push(&request.message)?;
     Ok(Value::Null)
 }
 
 /// The committed turns.
-pub(crate) fn turns(state: &State, request: &Handle) -> Result<Value, Failure> {
+pub(crate) fn turns(state: &RunContext, request: &Handle) -> Result<Value, Failure> {
     Ok(chat_ref(state, request.session)?.turns())
 }
 
 /// Token accounting.
-pub(crate) fn usage(state: &State, request: &Handle) -> Result<Value, Failure> {
+pub(crate) fn usage(state: &RunContext, request: &Handle) -> Result<Value, Failure> {
     Ok(wire::usage(chat_ref(state, request.session)?.usage()))
 }
 
 /// Forget the turns.
-pub(crate) fn reset(state: &mut State, request: &Handle) -> Result<Value, Failure> {
+pub(crate) fn reset(state: &mut RunContext, request: &Handle) -> Result<Value, Failure> {
     chat(state, request.session)?.reset();
     Ok(Value::Null)
 }
 
 /// Drop the conversation.
-pub(crate) fn close(state: &mut State, request: &Handle) -> Result<Value, Failure> {
+pub(crate) fn close(state: &mut RunContext, request: &Handle) -> Result<Value, Failure> {
     state
         .chats
         .remove(&request.session)
@@ -116,18 +116,18 @@ pub(crate) fn close(state: &mut State, request: &Handle) -> Result<Value, Failur
 }
 
 /// The client for a provider, built once per run and then shared.
-fn client(state: &mut State, spec: &ProviderSpec) -> Result<Client, Failure> {
+fn client(state: &mut RunContext, spec: &ProviderSpec) -> Result<Client, Failure> {
     state
         .clients
         .get(spec)
         .map_err(|error| Failure::new(error.to_string()))
 }
 
-fn chat_ref(state: &State, id: u64) -> Result<&Chat, Failure> {
+fn chat_ref(state: &RunContext, id: u64) -> Result<&Chat, Failure> {
     state.chats.get(&id).ok_or_else(|| unknown(id))
 }
 
-fn chat(state: &mut State, id: u64) -> Result<&mut Chat, Failure> {
+fn chat(state: &mut RunContext, id: u64) -> Result<&mut Chat, Failure> {
     state.chats.get_mut(&id).ok_or_else(|| unknown(id))
 }
 

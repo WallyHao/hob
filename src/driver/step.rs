@@ -4,16 +4,16 @@
 
 use mlua::{Lua, MultiValue, Value};
 
-use crate::cli::trace::Trace;
-use crate::effect::{Failure, Request, abort, json_to_lua};
+use crate::effect::{Failure, Operation, Request, abort, json_to_lua};
 use crate::exec;
+use crate::trace::Trace;
 
 use super::gate::{self, Gate};
 
 /// Handle one yielded effect.
 pub(super) fn handle(
     lua: &Lua,
-    state: &mut exec::State,
+    state: &mut exec::RunContext,
     gate: &mut Gate,
     trace: &mut Option<Trace>,
     yielded: &MultiValue,
@@ -30,8 +30,12 @@ pub(super) fn handle(
     if let Some(trace) = trace.as_mut() {
         trace.request(&request);
     }
-    match gate.decide(state, &request)? {
-        gate::Decision::Run => perform(lua, state, trace, &request),
+    let operation = match Operation::parse(&request) {
+        Ok(operation) => operation,
+        Err(failure) => return outcome(lua, trace, &request, Err(failure)),
+    };
+    match gate.decide(state, &request, &operation)? {
+        gate::Decision::Run => outcome(lua, trace, &request, exec::perform(state, &operation)),
         gate::Decision::Skip { reason, value } => {
             settle(trace, &request, reason, None);
             values(lua, &value)
@@ -40,13 +44,13 @@ pub(super) fn handle(
 }
 
 /// Perform the effect and translate its outcome into a resume value.
-fn perform(
+fn outcome(
     lua: &Lua,
-    state: &mut exec::State,
     trace: &mut Option<Trace>,
     request: &Request,
+    result: Result<serde_json::Value, Failure>,
 ) -> Result<MultiValue, Failure> {
-    match exec::perform(state, request) {
+    match result {
         Ok(value) => {
             settle(trace, request, "ok", None);
             values(lua, &value)

@@ -10,57 +10,67 @@
 
 use serde_json::{Value, json};
 
-use crate::effect::Request;
-use crate::effect::ops::agent::{Ask, Send};
-use crate::effect::ops::term::{Choose, Select};
+use crate::effect::{Operation, Request};
 use crate::exec::agent::{Chat, schema, wire};
-use crate::exec::{State, decode, term};
+use crate::exec::{RunContext, term};
 use crate::provider::Usage;
 
 /// The value a refused request stands in for.
-pub(crate) fn result(state: &State, request: &Request) -> Value {
-    match (request.ns.as_str(), request.op.as_str()) {
-        ("agent", "ask") => ask(request),
-        ("agent", "send") => send(state, request),
-        ("agent", "list") => Value::Array(Vec::new()),
-        ("proc", "exec" | "shell") => quiet_success(),
-        ("term", "allow") => Value::Bool(bool_field(request, "default")),
-        ("term", "input") => Value::String(text_field(request, "default")),
-        ("term", "select") => decode::<Select>(request).map_or_else(
-            |_| Value::String(String::new()),
-            |select| term::select_default(&select),
+pub(crate) fn result(state: &RunContext, request: &Request, operation: &Operation) -> Value {
+    match operation {
+        Operation::AgentAsk(args) => answer(
+            args.settings.schema.as_ref(),
+            provider(request),
+            model(request),
         ),
-        ("term", "choose") => decode::<Choose>(request).map_or_else(
-            |_| Value::Array(Vec::new()),
-            |choose| term::choose_default(&choose),
+        Operation::AgentSend(args) => {
+            let chat = state.chats.get(&args.session);
+            let (provider, model) = chat.map_or(("", ""), Chat::label);
+            let schema = args
+                .settings
+                .schema
+                .as_ref()
+                .or_else(|| chat.and_then(Chat::schema));
+            answer(schema, provider, model)
+        }
+        Operation::AgentList(..) => Value::Array(Vec::new()),
+        Operation::ProcExec(..) | Operation::ProcShell(..) => quiet_success(),
+        Operation::TermAllow(args) => Value::Bool(args.default.unwrap_or(false)),
+        Operation::TermInput(args) => Value::String(
+            args.default
+                .clone()
+                .or_else(|| args.initial.clone())
+                .unwrap_or_default(),
         ),
-        _ => Value::Null,
+        Operation::TermSelect(args) => term::select_default(args),
+        Operation::TermChoose(args) => term::choose_default(args),
+        Operation::FileRead(..)
+        | Operation::FileWrite(..)
+        | Operation::FileStat(..)
+        | Operation::FileList(..)
+        | Operation::ProcOpen(..)
+        | Operation::ProcWhich(..)
+        | Operation::ProcSetenv(..)
+        | Operation::ProcUnset(..)
+        | Operation::ProcChdir(..)
+        | Operation::ProcSetup(..)
+        | Operation::ProcState(..)
+        | Operation::ProcReset(..)
+        | Operation::ProcClose(..)
+        | Operation::AgentOpen(..)
+        | Operation::AgentPush(..)
+        | Operation::AgentTurns(..)
+        | Operation::AgentUsage(..)
+        | Operation::AgentReset(..)
+        | Operation::AgentClose(..)
+        | Operation::TermPrint(..)
+        | Operation::LogsWrite(..)
+        | Operation::TmplFetch(..) => Value::Null,
     }
 }
 
-fn ask(request: &Request) -> Value {
-    let answer = decode::<Ask>(request)
-        .ok()
-        .and_then(|ask| ask.settings.schema)
-        .map_or_else(
-            || Value::String(String::new()),
-            |schema| schema::example(&schema),
-        );
-    wire::result(&answer, &meta(provider(request), model(request)))
-}
-
-fn send(state: &State, request: &Request) -> Value {
-    let session = request.cmd.get("session").and_then(Value::as_u64);
-    let (provider, model) = session
-        .and_then(|id| state.chats.get(&id))
-        .map_or(("", ""), Chat::label);
-    let answer = decode::<Send>(request)
-        .ok()
-        .and_then(|send| send.settings.schema)
-        .map_or_else(
-            || Value::String(String::new()),
-            |schema| schema::example(&schema),
-        );
+fn answer(schema: Option<&Value>, provider: &str, model: &str) -> Value {
+    let answer = schema.map_or_else(|| Value::String(String::new()), schema::example);
     wire::result(&answer, &meta(provider, model))
 }
 
@@ -99,21 +109,4 @@ fn model(request: &Request) -> &str {
         .get("model")
         .and_then(Value::as_str)
         .unwrap_or("")
-}
-
-fn text_field(request: &Request, key: &str) -> String {
-    request
-        .cmd
-        .get(key)
-        .and_then(Value::as_str)
-        .unwrap_or_default()
-        .to_owned()
-}
-
-fn bool_field(request: &Request, key: &str) -> bool {
-    request
-        .cmd
-        .get(key)
-        .and_then(Value::as_bool)
-        .unwrap_or(false)
 }
