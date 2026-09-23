@@ -62,8 +62,9 @@ success so the preview can walk the whole path:
 | --- | --- |
 | `file.write` | `nil` |
 | `proc.exec` / `proc.shell` | `{ code = 0, stdout = "", stderr = "", ok = true, duration_ms = 0, truncated = false }` |
-| `agent.ask` / `:send` with a schema | the schema's smallest valid example, with `meta.attempts = 0` |
+| `agent.ask` / `:send` with a schema | the schema's smallest valid example (`minLength`, `minItems` and `minimum` respected), with `meta.attempts = 0` |
 | `agent.ask` / `:send` without a schema | `""` |
+| `agent.list` | `{}` (no models) |
 | `term.input` | `default` or `""` |
 | `term.allow` | `default` or `false` |
 | `term.select` / `term.choose` | the default labels' values |

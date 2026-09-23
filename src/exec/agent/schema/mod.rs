@@ -42,40 +42,4 @@ fn strip_fence(text: &str) -> Option<&str> {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::{extract, validate};
-    use serde_json::json;
-
-    #[test]
-    fn fences_are_tolerated() {
-        let value = extract("```json\n{\"ok\": true}\n```").expect("fenced JSON parses");
-        assert_eq!(value, json!({ "ok": true }));
-    }
-
-    #[test]
-    fn prose_is_not_json() {
-        assert!(extract("sure, here you go").is_err());
-    }
-
-    #[test]
-    fn a_shape_is_checked_with_a_path() {
-        let schema = json!({
-            "type": "object",
-            "required": ["name"],
-            "properties": { "name": { "type": "string" }, "n": { "type": "integer" } }
-        });
-        assert!(validate(&schema, &json!({ "name": "a", "n": 1 })).is_ok());
-        let missing = validate(&schema, &json!({ "n": 1 })).expect_err("required");
-        assert!(missing.contains("name"), "{missing}");
-        let wrong = validate(&schema, &json!({ "name": "a", "n": "x" })).expect_err("type");
-        assert!(wrong.contains("$.n"), "{wrong}");
-    }
-
-    #[test]
-    fn a_list_of_types_is_accepted() {
-        let schema =
-            json!({ "type": "object", "properties": { "x": { "type": ["string", "null"] } } });
-        assert!(validate(&schema, &json!({ "x": null })).is_ok());
-        assert!(validate(&schema, &json!({ "x": 1 })).is_err());
-    }
-}
+mod tests;

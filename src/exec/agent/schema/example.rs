@@ -27,15 +27,32 @@ pub(crate) fn example(schema: &Value) -> Value {
     }
     match schema["type"].as_str() {
         Some("object") if schema.get("properties").is_some() => object(schema),
-        Some("array") => Value::Array(vec![example(&schema["items"])]),
+        Some("array") => {
+            let count = schema.get("minItems").and_then(Value::as_u64).unwrap_or(1);
+            let items = std::iter::repeat_with(|| example(&schema["items"]))
+                .take(usize::try_from(count).unwrap_or(usize::MAX))
+                .collect();
+            Value::Array(items)
+        }
         // A visible placeholder rather than an empty string: an empty answer
         // makes a preview read as if the flow were broken.
-        Some("string") => Value::String(String::from("mock")),
-        Some("integer") => Value::from(0),
-        Some("number") => Value::from(0.0),
+        Some("string") => Value::String(pad(schema)),
+        Some("integer") => Value::from(schema.get("minimum").and_then(Value::as_i64).unwrap_or(0)),
+        Some("number") => Value::from(schema.get("minimum").and_then(Value::as_f64).unwrap_or(0.0)),
         Some("boolean") => Value::Bool(false),
         _ => Value::Null,
     }
+}
+
+/// The placeholder, grown to whatever `minLength` demands.
+fn pad(schema: &Value) -> String {
+    let minimum = schema.get("minLength").and_then(Value::as_u64).unwrap_or(0);
+    let minimum = usize::try_from(minimum).unwrap_or(usize::MAX);
+    let mut text = String::from("mock");
+    while text.chars().count() < minimum {
+        text.push('x');
+    }
+    text
 }
 
 fn object(schema: &Value) -> Value {

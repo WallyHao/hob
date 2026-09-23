@@ -77,7 +77,12 @@ published by the engine before the body runs.
 inline table `{ id, base_url, api_key_env, protocol, headers }` for a local
 gateway; the key still comes from the environment. `model` is required: ids
 change, so the engine does not guess one. A `schema` makes the answer JSON that
-is validated in Rust and, up to `max_attempts`, asked for again. `effort` is
+is validated in Rust and, up to `max_attempts`, asked for again; the validator
+enforces `type`, `const`, `enum`, `allOf`/`anyOf`/`oneOf`, `required`,
+`properties`, `additionalProperties`, `items`, `minItems`/`maxItems`,
+`minimum`/`maximum`/`exclusiveMinimum`/`exclusiveMaximum` and
+`minLength`/`maxLength`, and ignores the rest (`pattern` and tuple-form `items`
+among them), so a schema using those is weaker than it looks. `effort` is
 forwarded as `reasoning_effort`, which the Anthropic dialect refuses because it
 has no equivalent.
 
