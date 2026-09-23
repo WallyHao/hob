@@ -12,15 +12,22 @@ local file = {}
 --- Read a UTF-8 file.
 --
 -- `opts.optional` returns `nil` when the file does not exist instead of
--- failing, for the common "read it if it is there" case.
+-- failing, for the common "read it if it is there" case. `opts.limit` caps the
+-- read in bytes (8 MiB default); `limit = 0` reads whatever is there.
 function file.read(path, opts)
   opts = opts or {}
-  return hob.effect("file", "read", { path = path, optional = opts.optional })
+  return hob.effect("file", "read", {
+    path = path,
+    optional = opts.optional,
+    limit = opts.limit,
+  })
 end
 
 --- Write text, creating parent directories as needed.
 --
--- `opts.append` adds to the end of the file instead of replacing it.
+-- `opts.append` adds to the end of the file instead of replacing it. A replace
+-- is atomic: the text lands in a temp file beside the target and is renamed
+-- over it, so an interrupted run cannot leave a half-written file.
 function file.write(path, text, opts)
   opts = opts or {}
   return hob.effect("file", "write", {

@@ -3,8 +3,10 @@
 // so a preview can see it before it happens and nothing here needs to guess
 // whether an operation was safe.
 
+mod atomic;
+
 use std::fs;
-use std::io::Write as _;
+use std::io::{ErrorKind, Read as _, Write as _};
 use std::path::Path;
 use std::time::UNIX_EPOCH;
 
@@ -13,18 +15,39 @@ use serde_json::Value;
 use crate::effect::Failure;
 use crate::effect::ops::file::{List, Read, Stat, Write};
 
-/// Read a UTF-8 file.
+/// The most a read brings in when the flow names no limit.
+pub(crate) const READ_LIMIT: u64 = 8 * 1024 * 1024;
+
+/// Read a UTF-8 file, at most `limit` bytes of it.
 pub(crate) fn read(request: &Read) -> Result<Value, Failure> {
-    match fs::read_to_string(&request.path) {
-        Ok(text) => Ok(Value::String(text)),
-        Err(error) if request.optional && error.kind() == std::io::ErrorKind::NotFound => {
-            Ok(Value::Null)
+    let limit = request.limit.unwrap_or(READ_LIMIT);
+    let mut file = match fs::File::open(&request.path) {
+        Ok(file) => file,
+        Err(error) if request.optional && error.kind() == ErrorKind::NotFound => {
+            return Ok(Value::Null);
         }
-        Err(error) => Err(Failure::new(format!(
-            "cannot read `{}`: {error}",
+        Err(error) => {
+            return Err(Failure::new(format!(
+                "cannot read `{}`: {error}",
+                request.path
+            )));
+        }
+    };
+    let mut text = String::new();
+    // One byte past the cap tells "exactly at it" from "over it".
+    let read = if limit == 0 {
+        file.read_to_string(&mut text)
+    } else {
+        file.take(limit + 1).read_to_string(&mut text)
+    };
+    read.map_err(|error| Failure::new(format!("cannot read `{}`: {error}", request.path)))?;
+    if limit > 0 && text.len() as u64 > limit {
+        return Err(Failure::new(format!(
+            "`{}` is bigger than the {limit}-byte read limit; pass `limit = 0` to read it anyway",
             request.path
-        ))),
+        )));
     }
+    Ok(Value::String(text))
 }
 
 /// Write or append text, creating parent directories.
@@ -36,16 +59,16 @@ pub(crate) fn write(request: &Write) -> Result<Value, Failure> {
             Failure::new(format!("cannot create `{}`: {error}", parent.display()))
         })?;
     }
-    let result = if request.append {
+    if request.append {
         fs::OpenOptions::new()
             .create(true)
             .append(true)
             .open(&request.path)
             .and_then(|mut file| file.write_all(request.text.as_bytes()))
-    } else {
-        fs::write(&request.path, &request.text)
-    };
-    result.map_err(|error| Failure::new(format!("cannot write `{}`: {error}", request.path)))?;
+            .map_err(|error| Failure::new(format!("cannot write `{}`: {error}", request.path)))?;
+        return Ok(Value::Null);
+    }
+    atomic::replace(Path::new(&request.path), &request.text)?;
     Ok(Value::Null)
 }
 

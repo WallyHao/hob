@@ -11,6 +11,9 @@ pub(crate) struct Read {
     /// Return `nil` instead of failing when the file does not exist.
     #[serde(default)]
     pub(crate) optional: bool,
+    /// Most bytes to bring in; absent means the default, 0 means no cap.
+    #[serde(default)]
+    pub(crate) limit: Option<u64>,
 }
 
 /// `file.write`.

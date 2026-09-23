@@ -72,3 +72,35 @@ fn a_missing_file_fails_loudly() {
         stderr(&output)
     );
 }
+
+#[test]
+fn a_read_over_its_limit_is_refused() {
+    let flow = Flow::new(
+        "limit",
+        r#"
+        hob.file.write("big.txt", string.rep("x", 64))
+        hob.file.read("big.txt", { limit = 16 })
+        "#,
+    );
+    let output = flow.run(&[]);
+    assert_eq!(output.status.code(), Some(1));
+    assert!(
+        stderr(&output).contains("read limit"),
+        "{}",
+        stderr(&output)
+    );
+}
+
+#[test]
+fn a_zero_limit_reads_anything() {
+    let flow = Flow::new(
+        "no-limit",
+        r#"
+        hob.file.write("big.txt", string.rep("x", 64))
+        hob.term.print(tostring(#hob.file.read("big.txt", { limit = 0 })))
+        "#,
+    );
+    let output = flow.run(&[]);
+    assert!(output.status.success(), "{output:?}");
+    assert_eq!(stdout(&output), "64\n");
+}

@@ -122,8 +122,8 @@ there is no automatic loop. Each entry is `{id, name, arguments}`, with
 
 | Function | Length | What it does |
 | --- | --- | --- |
-| `file.read(path, opts?)` | 4 | UTF-8 read; `{optional = true}` gives `nil` when absent |
-| `file.write(path, text, opts?)` | 5 | replace, creating parents; `{append = true}` appends |
+| `file.read(path, opts?)` | 4 | UTF-8 read; `{optional = true}` gives `nil` when absent, `{limit = N}` caps the read (8 MiB default, 0 for no cap) |
+| `file.write(path, text, opts?)` | 5 | replace atomically, creating parents; `{append = true}` appends |
 | `file.stat(path)` | 4 | `{size, mtime, kind}` or `nil`; `kind` is `"file"`, `"dir"` or `"link"` |
 | `file.list(path)` | 4 | entry names, not recursive, sorted |
 
