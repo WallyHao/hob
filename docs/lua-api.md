@@ -193,15 +193,17 @@ today, and a name that is absolute or climbs out of the directory is refused.
 unreachable; `package.searchers` keeps only the preload searcher plus the
 library searcher, so `require` returns an embedded module or a file from
 `.hob/lib` (then the user's `lib/`) and nothing else — a module name is not a
-path (`docs/commands.md`). Flows are trusted local code, but a flow that cannot
-read a file except through `hob.file` is what makes `--dry-run` meaningful.
+path (`docs/commands.md`). Lua's heap is capped at 64 MiB, so a flow that runs
+away with memory fails instead of taking the process down. Flows are trusted
+local code, but a flow that cannot read a file except through `hob.file` is
+what makes `--dry-run` meaningful.
 
 ## LangChain, kept and dropped
 
 | LangChain | hob | Decision |
 | --- | --- | --- |
 | `ChatModel.invoke` | `agent.ask` | adopt, in the product's voice |
-| `.stream()` | `stream` / `on_delta` | adopt as options |
+| `.stream()` | `stream = true` | adopt; to stderr, `on_delta` deferred |
 | `.batch()` | -- | defer: the engine is single-threaded |
 | `bind_tools` / ToolNode | `tools` + `meta.tool_calls` | adopt the data, reject the loop |
 | `with_structured_output` | `schema` | adopt; validation and repair in Rust |

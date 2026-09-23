@@ -8,6 +8,11 @@ pub(crate) mod pure;
 
 use mlua::{Lua, LuaOptions, StdLib, Table, Value};
 
+/// How much Lua heap one flow may use. A flow that runs away with memory fails
+/// with an error instead of taking the process down; the startup budgets live
+/// far below this.
+const MEMORY_LIMIT: usize = 64 * 1024 * 1024;
+
 /// Build a VM that cannot reach the world on its own.
 ///
 /// `io`, `os` and `debug` are deliberately left out, and the base functions
@@ -23,6 +28,7 @@ pub(crate) fn new_vm() -> mlua::Result<Lua> {
         | StdLib::UTF8
         | StdLib::PACKAGE;
     let lua = Lua::new_with(libs, LuaOptions::default())?;
+    lua.set_memory_limit(MEMORY_LIMIT)?;
     let globals = lua.globals();
     for name in [
         "io", "os", "debug", "loadfile", "dofile", "load", "print", "warn",
