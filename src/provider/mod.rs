@@ -18,6 +18,7 @@ mod error;
 mod registry;
 mod secret;
 mod spec;
+mod sse;
 mod stream;
 mod types;
 mod usage;

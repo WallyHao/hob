@@ -16,6 +16,7 @@ pub(crate) trait Decode {
     fn feed(&mut self, data: &str) -> Result<Option<String>, Error>;
     /// The answer the events added up to.
     fn finish(&mut self, provider: &str) -> Result<ChatResponse, Error>;
+    fn complete(&self) -> bool;
 }
 
 /// The reader for a provider's dialect.

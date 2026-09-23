@@ -43,7 +43,6 @@ pub(crate) fn round_trip(
             "`stream` cannot be combined with `tools` yet: a streamed tool call cannot be assembled",
         ));
     }
-    let mut display = |delta: &str| show(delta);
     let mut conversation = messages_in.to_vec();
     if let Some(schema) = &settings.schema {
         conversation.push(Message::system(&schema::instruction(schema)));
@@ -54,9 +53,14 @@ pub(crate) fn round_trip(
         attempts += 1;
         budget.call()?;
         let request = wire::request(model, &conversation, settings);
-        let response = match provider::call(client, &request, &mut display) {
+        let mut emitted = false;
+        let result = provider::call(client, &request, &mut |delta| {
+            emitted = true;
+            show(delta);
+        });
+        let response = match result {
             Ok(response) => response,
-            Err(error) if error.retryable && attempts < allowed => {
+            Err(error) if error.retryable && attempts < allowed && !emitted => {
                 pause(attempts);
                 continue;
             }
@@ -90,7 +94,7 @@ pub(crate) fn round_trip(
                     usage,
                 });
             }
-            Err(error) if attempts < allowed => {
+            Err(error) if attempts < allowed && !emitted => {
                 conversation.push(message);
                 conversation.push(Message::user(&schema::repair(&error, schema)));
             }

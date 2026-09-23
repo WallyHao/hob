@@ -19,6 +19,7 @@ pub(crate) struct Stream {
     input_tokens: u64,
     output_tokens: u64,
     stop: Option<String>,
+    complete: bool,
 }
 
 impl Stream {
@@ -30,6 +31,7 @@ impl Stream {
             input_tokens: 0,
             output_tokens: 0,
             stop: None,
+            complete: false,
         }
     }
 }
@@ -41,6 +43,13 @@ impl Decode for Stream {
             source,
         })?;
         match event.kind.as_str() {
+            "message_stop" => self.complete = true,
+            "error" => {
+                return Err(Error::Shape {
+                    provider: self.provider.clone(),
+                    message: "provider reported a streaming error".to_owned(),
+                });
+            }
             "message_start" => {
                 if let Some(input) = event.message.and_then(|start| start.usage) {
                     self.input_tokens = input.input_tokens;
@@ -70,6 +79,12 @@ impl Decode for Stream {
     }
 
     fn finish(&mut self, _provider: &str) -> Result<ChatResponse, Error> {
+        if !self.complete || self.stop.is_none() {
+            return Err(Error::Shape {
+                provider: self.provider.clone(),
+                message: "stream has no finish reason".to_owned(),
+            });
+        }
         Ok(ChatResponse {
             choices: vec![Choice {
                 message: Message::assistant(&self.text),
@@ -82,31 +97,29 @@ impl Decode for Stream {
             }),
         })
     }
+
+    fn complete(&self) -> bool {
+        self.complete
+    }
 }
 
 #[derive(Deserialize)]
 struct Event {
     #[serde(rename = "type")]
     kind: String,
-    #[serde(default)]
     delta: Option<Delta>,
-    #[serde(default)]
     message: Option<Start>,
-    #[serde(default)]
     usage: Option<Output>,
 }
 
 #[derive(Deserialize)]
 struct Delta {
-    #[serde(default)]
     text: Option<String>,
-    #[serde(default)]
     stop_reason: Option<String>,
 }
 
 #[derive(Deserialize)]
 struct Start {
-    #[serde(default)]
     usage: Option<Input>,
 }
 

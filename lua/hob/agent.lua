@@ -6,8 +6,8 @@
 -- data: `meta.tool_calls` says what the model asked for and the flow decides
 -- what to run. There is no automatic loop.
 --
--- Streaming, a mock provider and `thinking` are not implemented yet; passing
--- them is an error rather than a silent no-op.
+-- A mock provider, `thinking` and streamed tool calls are not implemented yet;
+-- unsupported combinations fail instead of becoming silent no-ops.
 
 local hob = require("hob")
 

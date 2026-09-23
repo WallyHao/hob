@@ -41,6 +41,12 @@ impl Decode for Stream {
             provider: self.provider.clone(),
             source,
         })?;
+        if chunk.get("error").is_some() {
+            return Err(Error::Shape {
+                provider: self.provider.clone(),
+                message: "provider reported a streaming error".to_owned(),
+            });
+        }
         if let Some(usage) = chunk.get("usage").filter(|usage| !usage.is_null()) {
             self.usage = serde_json::from_value(usage.clone()).ok();
         }
@@ -84,6 +90,12 @@ impl Decode for Stream {
     }
 
     fn finish(&mut self, _provider: &str) -> Result<ChatResponse, Error> {
+        if self.finish.is_none() {
+            return Err(Error::Shape {
+                provider: self.provider.clone(),
+                message: "stream has no finish reason".to_owned(),
+            });
+        }
         let mut message = Message::assistant(&self.text);
         if !self.calls.is_empty() {
             message.tool_calls = Some(self.calls.values().map(flatten).collect());
@@ -95,6 +107,10 @@ impl Decode for Stream {
             }],
             usage: self.usage.take(),
         })
+    }
+
+    fn complete(&self) -> bool {
+        false
     }
 }
 

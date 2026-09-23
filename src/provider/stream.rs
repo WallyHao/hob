@@ -4,13 +4,12 @@
 
 use reqwest::Response;
 
+use super::body::LIMIT;
 use super::error::Error;
 use super::spec::ProviderSpec;
+use super::sse::Events;
 use super::types::ChatResponse;
 use super::wire;
-
-/// The most one streamed answer may bring in, matching the non-streaming cap.
-const LIMIT: usize = 10 * 1024 * 1024;
 
 /// Read an SSE body to its end, showing each text delta.
 pub(crate) async fn read(
@@ -19,15 +18,19 @@ pub(crate) async fn read(
     sink: &mut dyn FnMut(&str),
 ) -> Result<ChatResponse, Error> {
     let mut decoder = wire::decoder(spec);
-    let mut buffer = String::new();
+    let mut events = Events::default();
     let mut total = 0usize;
-    let mut done = false;
-    while !done {
+    loop {
         let chunk = response.chunk().await.map_err(|source| Error::Http {
             provider: spec.id.clone(),
             source,
         })?;
-        let Some(chunk) = chunk else { break };
+        let Some(chunk) = chunk else {
+            return Err(Error::Shape {
+                provider: spec.id.clone(),
+                message: "event stream ended before its completion marker".to_owned(),
+            });
+        };
         total += chunk.len();
         if total > LIMIT {
             return Err(Error::BodyTooLarge {
@@ -35,24 +38,25 @@ pub(crate) async fn read(
                 limit: LIMIT,
             });
         }
-        buffer.push_str(&String::from_utf8_lossy(&chunk));
-        while let Some(end) = buffer.find('\n') {
-            let line: String = buffer.drain(..=end).collect();
-            let Some(data) = line.trim_end_matches(['\r', '\n']).strip_prefix("data:") else {
-                continue;
-            };
-            match data.trim() {
-                "[DONE]" => {
-                    done = true;
-                    break;
+        for data in events.push(&chunk).map_err(|message| Error::Shape {
+            provider: spec.id.clone(),
+            message,
+        })? {
+            if data.trim() == "[DONE]" {
+                if spec.protocol != super::Protocol::OpenAi {
+                    return Err(Error::Shape {
+                        provider: spec.id.clone(),
+                        message: "unexpected completion marker".to_owned(),
+                    });
                 }
-                data => {
-                    if let Some(delta) = decoder.feed(data)? {
-                        sink(&delta);
-                    }
-                }
+                return decoder.finish(&spec.id);
+            }
+            if let Some(delta) = decoder.feed(&data)? {
+                sink(&delta);
+            }
+            if decoder.complete() {
+                return decoder.finish(&spec.id);
             }
         }
     }
-    decoder.finish(&spec.id)
 }
