@@ -71,12 +71,23 @@ and cancellation prompts. `--yes` keeps their safe default (cancel).
 | Providers, dialects, keys | `docs/providers.md` |
 | Size, heap and dependency gates | `docs/budgets.md` |
 
+## Platform support
+
+Linux only. hob is built and tested on Linux, and CI runs the full gate on
+`ubuntu-latest`; there is no macOS or Windows build. The maintainer has neither
+a development nor a test environment for them, so another platform would be
+unverified code shipped on trust, and the time it would take is better spent on
+the engine. The Unix-shaped parts (process groups, signals) are not
+Linux-specific by design, but verification, not design, is what is missing.
+
 ## Development
 
 `just check` is the gate: formatting, clippy, the 120-line source limit, the
-test suite and the budget scripts. `just format` rewrites files. The benchmark
-recipe additionally needs `iai-callgrind-runner`, which `just env` installs at
-the version locked in `Cargo.lock`.
+test suite and the budget scripts. `just format` rewrites files. `just install`
+builds the release binary and copies it to `$PREFIX/bin/hob` (default
+`$HOME/.local/bin`, or pass a directory: `just install /usr/local`). The
+benchmark recipe additionally needs `iai-callgrind-runner`, which `just env`
+installs at the version locked in `Cargo.lock`.
 
 ## License
 
