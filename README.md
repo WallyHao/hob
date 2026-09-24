@@ -37,6 +37,31 @@ hob hello wally    # DEEPSEEK_API_KEY must be set
 `hob list` shows what is installed; `hob run flow.lua` runs a file directly;
 `hob doctor` reports paths, commands and key variables.
 
+## Example: review Git commits
+
+This checkout includes `.hob/commands/git-commit.lua` and its modules in
+`.hob/lib/gitcommit/`. From this checkout, run `hob trust` once, configure a
+provider and default model as described in `docs/providers.md`, then run:
+
+```sh
+hob git-commit                 # use the configured default model
+hob git-commit deepseek-chat   # or name a model explicitly
+```
+
+The command reads the working-tree diff and untracked text files, asks before
+sending them to the model, and proposes one or more commits. You can add context,
+revise the plan, or cancel. Every commit needs another confirmation after its
+files are staged; declining leaves remaining changes uncommitted. To use it in
+another project, copy the command and the `gitcommit/` library directory into
+that project's `.hob/`, then trust that project.
+
+The first version groups whole files. It requires an empty Git index and an
+existing `HEAD`; it refuses conflicts, non-text or large untracked files, and
+large diffs. It reads at most 40 files and 160 KB of diff content. The built-in
+`--dry-run` cannot preview this command because `hob` currently treats all
+subprocess calls, including `git diff`, as effects; use the command's own review
+and cancellation prompts. `--yes` keeps their safe default (cancel).
+
 ## Documentation
 
 | Subject | File |
