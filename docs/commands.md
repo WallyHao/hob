@@ -72,6 +72,9 @@ path, and cannot touch a builtin. Removing a project command that shadows a
 user command prints the path that becomes effective again. `list`, `which` and
 `doctor` also answer as one JSON object under `--json` (`docs/control.md`).
 
+A verb called with a missing or extra argument is a usage error (exit 2);
+`hob trust --list` is the one form that answers outside a project.
+
 Control flags (`--dry-run`, `--step`, `--trace`, `--timeout`, `-v`, `-q`,
 `--yes`) may follow the command name; `--` ends them and hands everything after
 it to the flow. They are described in `docs/control.md`.
@@ -101,8 +104,9 @@ starts; directories created later are not added to the search. In a project, an
 unreadable or malformed user trust store fails the run before executing Lua.
 Trust changes take effect on the next run.
 
-Module names are lowercase words joined by dots; a slash or `..` is not a module
-name. A library root may be a symlink only when its target remains within its
+Module names are lowercase words joined by dots; a word may also contain
+underscores and digits, but a slash or `..` is not a module name. A library
+root may be a symlink only when its target remains within its
 owning project or user configuration directory. A module's resolved path must
 remain inside that library root, including through directory symlinks. An
 existing link that resolves outside this boundary, or a dangling module-file

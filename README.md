@@ -20,8 +20,7 @@ A command is a Lua file. Put one in a project and let hob find it:
 ```sh
 mkdir -p .hob/commands
 cat > .hob/commands/hello.lua <<'LUA'
--- --- hello ---
--- Greet someone with one model call.
+--- Greet someone with one model call.
 
 local answer = hob.agent.ask{
   model = "deepseek-chat",
@@ -52,8 +51,8 @@ The command reads the working-tree diff and untracked text files, asks before
 sending them to the model, and proposes one or more commits. You can add context,
 revise the plan, or cancel. Every commit needs another confirmation after its
 files are staged; declining leaves remaining changes uncommitted. To use it in
-another project, copy the command and the `gitcommit/` library directory into
-that project's `.hob/`, then trust that project.
+another project, copy the command into that project's `.hob/commands/` and the
+`gitcommit/` directory into `.hob/lib/`, then trust that project.
 
 The first version groups whole files. It requires an empty Git index and an
 existing `HEAD`; it refuses conflicts, non-text or large untracked files, and

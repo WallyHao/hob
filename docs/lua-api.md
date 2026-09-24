@@ -20,15 +20,16 @@ semantics. Everything with a side effect goes through the bridge.
 
 ## Naming rules
 
-1. Module names are lowercase, singular, 3-4 letters, no underscores; full
-   words except the established contractions `proc` and `tmpl` and the acronym
+1. Module names are lowercase words, 3-5 letters, no underscores; full words
+   except the established contractions `proc` and `tmpl` and the acronym
    `json`.
 2. Within a module, or within one object's methods, names differ in length by
-   at most one letter.
+   at most two letters.
 3. The same verb means the same thing across modules: `open` constructs,
    `list` enumerates, `read`/`write` move text, `send` is one conversation
    turn, `reset`/`close` are lifecycle.
-4. The wire `op` is the function name, so there is no second naming scheme.
+4. The wire `op` is the function name, so there is no second naming scheme;
+   `hob.logs` is the exception, where the level helpers share one `write` op.
 
 ## Modules
 
@@ -75,10 +76,11 @@ published by the engine before the body runs.
 
 `provider` is a registry id (`"deepseek"`), a name from `config.toml`, or an
 inline table `{ id, base_url, api_key_env, protocol, headers }` for a local
-gateway; the key still comes from the environment. `model` is required: ids
-change, so the engine does not guess one. A `schema` makes the answer JSON that
-is validated in Rust and, up to `max_attempts`, asked for again; the validator
-enforces `type`, `const`, `enum`, `allOf`/`anyOf`/`oneOf`, `required`,
+gateway; the key still comes from the environment. `model` is required unless
+`config.toml` sets a `[defaults] model`: ids change, so the engine never guesses
+one, it only follows what was written down. A `schema` makes the answer JSON
+that is validated in Rust and, up to `max_attempts`, asked for again; the
+validator enforces `type`, `const`, `enum`, `allOf`/`anyOf`/`oneOf`, `required`,
 `properties`, `additionalProperties`, `items`, `minItems`/`maxItems`,
 `minimum`/`maximum`/`exclusiveMinimum`/`exclusiveMaximum` and
 `minLength`/`maxLength`, and ignores the rest (`pattern` and tuple-form `items`
@@ -98,8 +100,8 @@ has no equivalent.
 `stream = true` makes the answer arrive as events: the text is shown on stderr
 while it is generated, and the assembled answer and `meta` are still returned
 whole, so a flow does not branch on how the answer travelled. Streaming cannot
-be combined with `tools` yet: a streamed tool call cannot be assembled, and the
-call is refused rather than silently dropping it.
+be combined with `tools` yet: the Messages dialect cannot assemble a streamed
+tool call, so the call is refused rather than silently dropping it.
 
 `max_prompt_tokens` caps what a conversation sends: before a `:send`, the oldest
 exchanges are dropped until the rest is estimated under the cap, and the newest
@@ -122,7 +124,7 @@ there is no automatic loop. Each entry is `{id, name, arguments}`, with
 
 | Function | Length | What it does |
 | --- | --- | --- |
-| `file.read(path, opts?)` | 4 | UTF-8 read; `{optional = true}` gives `nil` when absent, `{limit = N}` caps the read (8 MiB default, 0 for no cap) |
+| `file.read(path, opts?)` | 4 | UTF-8 read; `{optional = true}` gives `nil` when absent, `{limit = N}` refuses a file over N bytes (8 MiB default, 0 for no cap) |
 | `file.write(path, text, opts?)` | 5 | replace atomically, creating parents; `{append = true}` appends |
 | `file.stat(path)` | 4 | `{size, mtime, kind}` or `nil`; `kind` is `"file"`, `"dir"` or `"link"` |
 | `file.list(path)` | 4 | entry names, not recursive, sorted |
@@ -132,8 +134,8 @@ there is no automatic loop. Each entry is `{id, name, arguments}`, with
 | Function | Length | What it does |
 | --- | --- | --- |
 | `proc.open(opts?)` | 4 | open a session: `cwd`, `env`, `profile`, `env_clear` |
-| `proc.exec(argv, opts?)` | 4 | run one program; `{inherit = true}` hands over the terminal |
-| `proc.shell(line, opts?)` | 5 | run one shell line through `sh -c` |
+| `proc.exec(argv, opts?)` | 4 | run one program; `stdin`, `timeout_ms`, `trim`, `inherit`, `env_clear` |
+| `proc.shell(line, opts?)` | 5 | run one shell line through `sh -c`; same options |
 | `proc.which(prog)` | 5 | resolve a program on `PATH` |
 
 | Session | Length | What it does |
@@ -166,7 +168,7 @@ kills the tree it started rather than leaving orphans (`docs/control.md`).
 | `term.input{...}` | 5 | one line of input; `prompt`, `default`, `initial` |
 | `term.allow(prompt, opts?)` | 5 | yes/no; `default`, `detail` |
 | `term.select{...}` | 6 | pick one label; `prompt`, `options`, `default` |
-| `term.choose{...}` | 6 | pick labels; `defaults`, `min`, `max` |
+| `term.choose{...}` | 6 | pick labels; `prompt`, `options`, `defaults`, `min`, `max` |
 
 ## `hob.logs` (implemented)
 

@@ -8,13 +8,13 @@ each gate; this page is the index.
 
 | Gate | Where | Budget | Measured | Kind |
 | --- | --- | --- | --- | --- |
-| Release binary size | `scripts/check_binary_size.sh` | 8 MiB | 5957 KiB | absolute |
+| Release binary size | `scripts/check_binary_size.sh` | 8 MiB | 5979 KiB | absolute |
 | Peak heap, `hob --version` | `scripts/check_heap.sh` | 16 KiB | 1736 B | absolute |
-| Peak heap, `hob run` (one-line flow) | `scripts/check_heap.sh` | 128 KiB | 69 KiB | absolute |
-| Startup allocations | `tests/allocations.rs` | 4 KiB, 32 allocations | 983 B, 2 allocations | absolute |
+| Peak heap, `hob run` (one-line flow) | `scripts/check_heap.sh` | 128 KiB | 70 KiB | absolute |
+| Startup allocations | `tests/allocations.rs` | 4 KiB, 32 allocations | 2497 B, 2 allocations | absolute |
 | Normal dependencies | `scripts/check_deps.sh` | 150 crates, denylist | 108 crates | absolute |
-| Startup instructions | `benches/startup.rs` | against a saved baseline | 1534 / 810 / 3521 | relative |
-| Flow startup instructions | `benches/startup.rs` | against a saved baseline | 2472672 | relative |
+| Startup instructions | `benches/startup.rs` | against a saved baseline | 1534 / 823 / 3573 | relative |
+| Flow startup instructions | `benches/startup.rs` | against a saved baseline | 2366233 | relative |
 
 Interrupt cleanup -- exit 130 with no surviving process group -- is asserted by
 `tests/interrupt.rs` rather than held to a number.
@@ -24,6 +24,11 @@ Massif and the counting allocator are deterministic; do not replace them with
 wall-clock or RSS comparisons, which are not. The benchmarks additionally need
 `iai-callgrind-runner`, which `just env` installs at the version locked in
 `Cargo.lock`.
+
+The instruction counts are the last recorded local run, not an enforced gate:
+`just bench` measures them, and comparing against a saved baseline needs
+`cargo bench --bench startup -- --baseline <name> --regression-fail-fast`,
+which neither `just check` nor CI runs.
 
 Size and heap only move when a feature becomes reachable from the binary: code
 that nothing calls is stripped by LTO. The dependency count moves as soon as

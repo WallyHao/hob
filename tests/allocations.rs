@@ -4,7 +4,8 @@
 //! process, so parallel tests in the same binary would pollute each other's
 //! regions.
 //!
-//! Thresholds are provisional until the runtime lands; see docs/budgets.md.
+//! The measured paths are CLI-only (`--version`, `--help`, an unknown name);
+//! none of them loads the Lua runtime. See docs/budgets.md.
 
 use stats_alloc::{INSTRUMENTED_SYSTEM, Region, Stats, StatsAlloc};
 use std::alloc::System;
@@ -12,8 +13,8 @@ use std::alloc::System;
 #[global_allocator]
 static GLOBAL: &StatsAlloc<System> = &INSTRUMENTED_SYSTEM;
 
-/// Provisional: re-derive (not just raise) once the Lua runtime is part of
-/// startup; the current headroom over a measured 502 bytes is deliberate.
+/// Provisional: the measured peak is 2497 bytes, and the headroom above it is
+/// deliberate. Re-derive (do not just raise) when startup changes shape.
 const MAX_BYTES: usize = 4 * 1024;
 const MAX_ALLOCATIONS: usize = 32;
 

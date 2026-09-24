@@ -49,14 +49,15 @@ providers, budgets) is the spec set; `README.md` is the front door.
 - Rust owns all effects. `lua/hob/*.lua` are thin wrappers over the one
   `hob.effect` primitive, embedded with `include_str!` (`src/lua/embedded.rs`):
   edit the `.lua` files directly, there is no codegen or install step.
-- Read-vs-write is classified in Rust (`src/exec/safety.rs`), so a flow cannot
+- Read-vs-write is classified in Rust (`src/effect/policy.rs`), so a flow cannot
   talk the engine out of refusing a write during a preview.
 - New OpenAI-compatible provider: one entry in `src/provider/registry.rs` plus
   the key-variable test. New wire dialect: a `Protocol` variant and a module
   under `src/provider/wire/`. Keys only ever come from the env var a spec names.
-- `docs/lua-api.md` naming rules are a contract: 3-4 letter module names, names
-  within a module differ by at most one letter, wire `op` == function name. Keep
-  the docs in step with behavior.
+- `docs/lua-api.md` naming rules are a contract: 3-5 letter module names, names
+  within a module differ by at most two letters, wire `op` == function name
+  (except `hob.logs`, whose level helpers share `write`). Keep the docs in step
+  with behavior.
 
 ## Tests
 

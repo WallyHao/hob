@@ -4,7 +4,7 @@
 
 A provider is data, not code: `src/provider/spec.rs` holds `ProviderSpec`
 (id, base URL, key variable, protocol), and `src/provider/registry.rs` lists
-the built-ins. DeepSeek is the first entry.
+the built-ins. DeepSeek is the only built-in today.
 
 Adding an OpenAI-compatible provider (Moonshot, Qwen, Zhipu, OpenRouter,
 SiliconFlow, a local gateway) is one entry in `registry.rs` plus a test that
@@ -82,7 +82,8 @@ hob reads keys from the environment and never writes them anywhere.
 - Each provider names one variable (`DEEPSEEK_API_KEY` for DeepSeek).
 - `Client::from_env` reads it at construction. There is no credential file,
   no `hob auth` store, and no key in any configuration hob may write later.
-- A missing key fails with the variable's name and nothing else.
+- A missing key fails with the provider's name and the variable to set, never
+  a value.
 - `Secret` is the only type that carries a key. It has no `Display`, no
   `Serialize` and a redacted `Debug`, so the key can only leave through
   `expose()` at the request boundary. Error bodies are scrubbed with the same
@@ -109,13 +110,13 @@ An OpenAI-compatible request also asks for token usage in the last event
 (`stream_options.include_usage`), since servers only send it when asked; a
 server that ignores the option streams fine but reports no tokens, so
 `--max-tokens` cannot see that call's cost. Streaming with `tools` is refused
-until streamed tool calls can be assembled, and a retry after a transport
-failure re-streams the answer from the start, so a partial line may be shown
-twice.
+until every dialect can assemble a streamed tool call: the OpenAI decoder
+already does, the Messages one does not. A retry happens only while nothing has
+been shown, so a partial line is never printed twice.
 
 ## Deliberately deferred
 
-- Retry and per-request timeout policy inside the client; `agent.max_attempts`
-  retries a failed call at the flow level.
+- Retry policy inside the client; `agent.max_attempts` retries a failed call at
+  the flow level. The client already applies connect and request timeouts.
 - `hob models` as a command; `Client::models` is the underlying call, exposed
   as `agent.list`.

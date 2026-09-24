@@ -12,11 +12,11 @@ that has a flag of its own can still receive it.
 | `--trace FILE` | Write a JSONL record of every effect (overwrites) |
 | `--trace-full` | With `--trace`, record content fields as they are |
 | `--timeout SECS` | Stop the whole run after SECS seconds, with exit 124 |
-| `--json` | Print `list`, `which` and `doctor` as one JSON object; other verbs ignore it |
+| `--json` | Print `list`, `which`, `doctor` and `trust` as one JSON object; other verbs ignore it |
 | `--max-calls N` | Refuse the run's N+1'th provider call, model listings included |
 | `--max-tokens N` | Refuse a provider call once N reported tokens were spent |
 | `--color WHEN` | `term.print` styling: `auto` (terminal only), `always`, `never` |
-| `-v`, `-vv` | Show `debug` log lines, then `trace` ones; more `v`s mean `-vv` |
+| `-v`, `-vv`, `--verbose` | Show `debug` log lines, then `trace` ones; each `-v` or `--verbose` adds a level |
 | `-q`, `--quiet` | Only warnings and errors |
 | `-y`, `--yes` | Answer every question with its default |
 | `--` | Everything after it belongs to the flow |
@@ -25,18 +25,18 @@ that has a flag of its own can still receive it.
 An unknown flag before the command name is a usage error (exit 2).
 
 `--json` shapes the verbs that describe the installation: `list`, `which`,
-`doctor` and `trust --list` print one object instead of text. The success output
+`doctor` and `trust` print one object instead of text. The success output
 of the other verbs ignores the flag. Once the command name is parsed, a failure
 is one `{"error": "..."}` object on stderr instead of an `error:` line, so a
 script reads JSON from stdout or stderr and nothing else; a usage error raised
 before the command name (the flags themselves did not parse) stays text.
 
 `--color auto` -- the default -- spells a style only when the line's own stream
-is a terminal, and honours `NO_COLOR` (set to anything: no colour) and
-`CLICOLOR_FORCE` (set, and not `0`: colour even into a pipe). The flag wins over
-both: `--color always` colours a pipe, `--color never` stays plain. A flow names
-a style, never an escape code, so a command that pipes its output somewhere else
-is not the one that has to think about it.
+is a terminal, and honours `NO_COLOR` (set to a non-empty value: no colour) and
+`CLICOLOR_FORCE` (set to a non-empty value other than `0`: colour even into a
+pipe). The flag wins over both: `--color always` colours a pipe, `--color never`
+stays plain. A flow names a style, never an escape code, so a command that pipes
+its output somewhere else is not the one that has to think about it.
 
 ## Budgets
 
@@ -62,10 +62,10 @@ success so the preview can walk the whole path:
 | --- | --- |
 | `file.write` | `nil` |
 | `proc.exec` / `proc.shell` | `{ code = 0, stdout = "", stderr = "", ok = true, duration_ms = 0, truncated = false }` |
-| `agent.ask` / `:send` with a schema | the schema's smallest valid example (`minLength`, `minItems` and `minimum` respected), with `meta.attempts = 0` |
+| `agent.ask` / `:send` with a schema | a synthetic schema-shaped example (`minLength`, `minItems` and `minimum` respected), with `meta.attempts = 0` |
 | `agent.ask` / `:send` without a schema | `""` |
 | `agent.list` | `{}` (no models) |
-| `term.input` | `default` or `""` |
+| `term.input` | `default`, else `initial`, else `""` |
 | `term.allow` | `default` or `false` |
 | `term.select` / `term.choose` | the default labels' values |
 
@@ -83,9 +83,10 @@ is what makes a step run usable in a pipeline.
 ## What is printed
 
 One line per effect, never the wire arguments: a prompt is reported as a size and
-a command is clipped. Values of environment variables named like credentials
-(`*_KEY`, `*_TOKEN`, `*_SECRET`, `*_PASSWORD`, `*_CREDENTIAL`) are masked in
-that line, so a preview cannot print a key. A flow cannot read the environment,
+a command is clipped. Values of environment variables named like credentials (an
+underscore-separated `KEY`, `TOKEN`, `SECRET`, `PASSWORD`, `PASSWD` or
+`CREDENTIAL`) are masked in that line, unless shorter than eight characters, so
+a preview cannot print a key. A flow cannot read the environment,
 but a value it obtained another way may still be one.
 
 ## Trace
