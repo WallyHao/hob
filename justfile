@@ -56,6 +56,16 @@ bench:
     IAI_CALLGRIND_RUNNER="${IAI_CALLGRIND_RUNNER:-${CARGO_HOME:-$HOME/.cargo}/bin/iai-callgrind-runner}" \
         cargo bench --bench startup
 
+# --- install ---
+
+# Build the release binary and install it as `<prefix>/bin/hob`. The prefix is
+# the first argument, else `$PREFIX`, else `~/.local`; `just install /usr/local`
+# and `PREFIX=/usr/local just install` are the same.
+install prefix=env_var_or_default("PREFIX", "$HOME/.local"):
+    cargo build --release --locked
+    install -Dm755 target/release/hob "{{prefix}}/bin/hob"
+    @printf 'installed %s\n' "{{prefix}}/bin/hob"
+
 # --- environment ---
 
 # Check the toolchain and install whatever is missing.
